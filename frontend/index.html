@@ -1,14 +1,393 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WayFinder</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WayFinder — Route Optimizer</title>
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <!-- Google Fonts: Syne (display) + DM Sans (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- App Stylesheet -->
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- ═══════════════════════════════════════════════
+       TOPBAR
+  ═══════════════════════════════════════════════ -->
+    <header class="topbar" id="topbar">
+      <!-- Search bar -->
+      <div class="topbar__search">
+        <span class="topbar__search-icon">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          class="topbar__search-input"
+          id="globalSearch"
+          placeholder="Cari kota, tempat, atau koordinat…"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Status indicator -->
+      <div class="topbar__meta">
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot"></span>
+          <span class="status-label" id="statusLabel">Siap</span>
+        </div>
+
+        <!-- Profile avatar placeholder -->
+        <button class="avatar-btn" aria-label="Profil pengguna">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════
+       MAIN LAYOUT WRAPPER
+  ═══════════════════════════════════════════════ -->
+    <main class="app-layout">
+      <!-- ─── SIDEBAR ─────────────────────────────── -->
+      <aside class="sidebar" id="sidebar">
+        <!-- Logo / Brand -->
+        <div class="sidebar__brand">
+          <div class="brand-icon">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="3 11 22 2 13 21 11 13 3 11" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">WayFinder</span>
+            <span class="brand-tagline">Route Optimizer</span>
+          </div>
+          <!-- Collapse toggle (mobile) -->
+          <button
+            class="sidebar-toggle"
+            id="sidebarToggle"
+            aria-label="Toggle sidebar"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Divider -->
+        <div class="sidebar__divider"></div>
+
+        <!-- Input area -->
+        <div class="sidebar__section">
+          <label class="section-label">Tambah Lokasi</label>
+          <div class="input-group">
+            <span class="input-icon">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              id="locationInput"
+              class="location-input"
+              placeholder="Nama lokasi (opsional)…"
+              autocomplete="off"
+              maxlength="60"
+            />
+          </div>
+          <p class="input-hint">
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            Klik pada peta untuk menambahkan titik
+          </p>
+          <button class="btn btn--primary" id="addLocationBtn">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Tambah Lokasi
+          </button>
+        </div>
+
+        <!-- Divider -->
+        <div class="sidebar__divider"></div>
+
+        <!-- Location list -->
+        <div class="sidebar__section sidebar__section--grow">
+          <div class="section-header">
+            <label class="section-label">Daftar Lokasi</label>
+            <span class="location-count" id="locationCount">0 titik</span>
+          </div>
+
+          <!-- Location list container -->
+          <div class="location-list" id="locationList">
+            <!-- Empty state -->
+            <div class="empty-state" id="emptyState">
+              <div class="empty-state__icon">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v4l3 3" />
+                </svg>
+              </div>
+              <p class="empty-state__title">Belum ada lokasi</p>
+              <p class="empty-state__desc">
+                Klik pada peta atau gunakan form di atas untuk menambah titik
+                perjalanan
+              </p>
+            </div>
+
+            <!-- Location items will be injected here by ui.js -->
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="sidebar__divider"></div>
+
+        <!-- Actions + Summary -->
+        <div class="sidebar__section sidebar__section--footer">
+          <button class="btn btn--optimize" id="optimizeBtn" disabled>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            Optimalkan Rute
+          </button>
+
+          <!-- Stats cards -->
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+              <span class="stat-card__label">Total Jarak</span>
+              <span class="stat-card__value" id="totalDistance">— km</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__label">Est. Waktu</span>
+              <span class="stat-card__value" id="estTime">— menit</span>
+            </div>
+          </div>
+
+          <!-- Route info panel (hidden until optimized) -->
+          <div class="route-info" id="routeInfo" style="display: none">
+            <div class="route-info__header">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              Urutan Rute Optimal
+            </div>
+            <ol class="route-order" id="routeOrder"></ol>
+          </div>
+
+          <!-- Clear all button -->
+          <button class="btn btn--ghost btn--sm" id="clearAllBtn">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+              />
+            </svg>
+            Hapus Semua
+          </button>
+        </div>
+      </aside>
+      <!-- ─── END SIDEBAR ──────────────────────────── -->
+
+      <!-- ─── MAP AREA ─────────────────────────────── -->
+      <section class="map-area">
+        <!-- Map container (Leaflet target) -->
+        <div id="map" class="map-container"></div>
+
+        <!-- Floating map controls -->
+        <div class="map-fab-group">
+          <button class="map-fab" id="centerMapBtn" title="Tengahkan peta">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
+              <line x1="12" y1="2" x2="12" y2="5" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="5" y2="12" />
+              <line x1="19" y1="12" x2="22" y2="12" />
+            </svg>
+          </button>
+          <button class="map-fab" id="fitBoundsBtn" title="Sesuaikan tampilan">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Map overlay hint (shown first time) -->
+        <div class="map-hint" id="mapHint">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
+          </svg>
+          Klik di mana saja pada peta untuk menambah lokasi
+        </div>
+      </section>
+      <!-- ─── END MAP AREA ─────────────────────────── -->
+    </main>
+
+    <!-- ═══════════════════════════════════════════════
+       TOAST NOTIFICATION
+  ═══════════════════════════════════════════════ -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ═══════════════════════════════════════════════
+       SCRIPTS — order matters
+  ═══════════════════════════════════════════════ -->
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- App modules -->
     <script src="js/api.js"></script>
     <script src="js/map.js"></script>
     <script src="js/ui.js"></script>
-</body>
+  </body>
 </html>
