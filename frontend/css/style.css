@@ -2,14 +2,16 @@
    WayFinder — style.css
    Aesthetic: Monochrome precision + warm gold accent
    Fonts: Syne (display) + DM Sans (body)
+   Updated: Template Wisata + Layout Fix + Responsive
 ═══════════════════════════════════════════════════════════ */
 
 /* ── 1. CSS CUSTOM PROPERTIES ──────────────────────────── */
 :root {
   /* Core palette */
-  --color-bg: #f8f8f6;
+  --color-bg: #f7f7f5;
   --color-surface: #ffffff;
   --color-surface-alt: #f2f2ef;
+  --color-surface-hover: #ebebе7;
   --color-border: #e8e8e4;
   --color-border-soft: #f0f0ec;
 
@@ -33,6 +35,12 @@
   --color-success: #3a8a5c;
   --color-warning: #c9a84c;
   --color-danger: #c94c4c;
+
+  /* Template */
+  --color-template: #4c7cc9;
+  --color-template-light: #dde8f8;
+  --color-template-dark: #2e5aa8;
+  --color-template-glow: rgba(76, 124, 201, 0.18);
 
   /* Shadows */
   --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -59,7 +67,7 @@
   --topbar-h: 56px;
 
   /* Sidebar */
-  --sidebar-w: 320px;
+  --sidebar-w: 300px;
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -80,6 +88,7 @@ html {
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -122,6 +131,7 @@ ul {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
@@ -140,6 +150,24 @@ ul {
   position: relative;
   flex-shrink: 0;
   box-shadow: var(--shadow-xs);
+}
+
+/* Hamburger (mobile only via media query) */
+.topbar__hamburger {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.topbar__hamburger:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
 }
 
 /* Search */
@@ -204,6 +232,7 @@ ul {
   font-weight: 500;
   color: var(--color-text-secondary);
   transition: all var(--transition-smooth);
+  white-space: nowrap;
 }
 
 .status-dot {
@@ -212,6 +241,7 @@ ul {
   border-radius: 50%;
   background: var(--color-success);
   animation: pulse-dot 2.5s ease-in-out infinite;
+  flex-shrink: 0;
 }
 
 .status-pill.status--optimizing .status-dot {
@@ -247,6 +277,7 @@ ul {
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .avatar-btn:hover {
@@ -265,6 +296,21 @@ ul {
 }
 
 /* ── 5. SIDEBAR ─────────────────────────────────────────── */
+/*
+  Struktur sidebar (flex column, tidak overflow):
+  .sidebar
+  ├── .sidebar__brand          (flex-shrink: 0)
+  ├── .sidebar__divider        (flex-shrink: 0)
+  ├── .sidebar__body           (flex: 1, overflow-y: auto) ← SCROLLABLE
+  │   ├── input section
+  │   ├── divider
+  │   ├── template section
+  │   ├── divider
+  │   └── location list section
+  └── .sidebar__footer         (flex-shrink: 0, sticky) ← ALWAYS VISIBLE
+      ├── divider
+      └── stats + buttons
+*/
 .sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
@@ -277,6 +323,9 @@ ul {
   transition:
     width var(--transition-smooth),
     transform var(--transition-smooth);
+  /* Pastikan tinggi sidebar = tinggi app-layout */
+  min-height: 0;
+  max-height: 100%;
 }
 
 /* Brand */
@@ -284,13 +333,13 @@ ul {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-lg) var(--space-lg) var(--space-md);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
   flex-shrink: 0;
 }
 
 .brand-icon {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-md);
   background: var(--color-action);
   color: var(--color-accent);
@@ -305,19 +354,20 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 
 .brand-name {
   font-family: "Syne", sans-serif;
   font-weight: 800;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
   line-height: 1;
 }
 
 .brand-tagline {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--color-text-muted);
   font-weight: 400;
   letter-spacing: 0.06em;
@@ -330,11 +380,11 @@ ul {
   height: 30px;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
-  display: flex;
+  display: none; /* shown only on mobile */
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
-  display: none; /* shown only on mobile */
+  flex-shrink: 0;
 }
 
 .sidebar-toggle:hover {
@@ -346,37 +396,43 @@ ul {
 .sidebar__divider {
   height: 1px;
   background: var(--color-border-soft);
-  margin: 0 var(--space-lg);
+  margin: 0;
   flex-shrink: 0;
+}
+
+/* ── Sidebar Body (SCROLLABLE) ───────────────────────────── */
+.sidebar__body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
 }
 
 /* Sections */
 .sidebar__section {
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-md) var(--space-md);
   flex-shrink: 0;
 }
 
-.sidebar__section--grow {
+/* Location list section — takes remaining space in body */
+.sidebar__section--list {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sidebar__section--footer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
 }
 
 /* Section label */
 .section-label {
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.68rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   color: var(--color-text-muted);
   display: block;
   margin-bottom: var(--space-sm);
@@ -390,20 +446,41 @@ ul {
 }
 
 .location-count {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: var(--color-text-muted);
   background: var(--color-surface-alt);
   padding: 2px 8px;
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   transition: all var(--transition-smooth);
+  white-space: nowrap;
 }
 
 .location-count.has-items {
   background: var(--color-accent-light);
   border-color: var(--color-accent);
   color: var(--color-accent-dark);
+}
+
+/* ── Sidebar Footer (STICKY / ALWAYS VISIBLE) ────────────── */
+.sidebar__footer {
+  flex-shrink: 0;
+  background: var(--color-surface);
+  /* Subtle top separator via divider inside */
+}
+
+.footer-inner {
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 /* ── 6. INPUT GROUP ─────────────────────────────────────── */
@@ -446,6 +523,7 @@ ul {
   color: var(--color-text-primary);
   background: transparent;
   font-weight: 400;
+  min-width: 0;
 }
 
 .location-input::placeholder {
@@ -453,12 +531,12 @@ ul {
 }
 
 .input-hint {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   color: var(--color-text-muted);
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
   line-height: 1.4;
 }
 
@@ -476,6 +554,7 @@ ul {
   user-select: none;
   width: 100%;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 /* Primary */
@@ -530,9 +609,9 @@ ul {
 }
 
 .btn--ghost:hover {
-  background: var(--color-surface-alt);
-  color: var(--color-text-secondary);
-  border-color: var(--color-text-muted);
+  background: #fff0f0;
+  color: var(--color-danger);
+  border-color: rgba(201, 76, 76, 0.3);
 }
 
 .btn--sm {
@@ -540,14 +619,60 @@ ul {
   font-size: 0.82rem;
 }
 
+/* Template button — blue accent */
+.btn--template {
+  background: var(--color-template-light);
+  color: var(--color-template-dark);
+  border: 1.5px solid rgba(76, 124, 201, 0.3);
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all var(--transition-smooth);
+}
+
+.btn--template:hover {
+  background: var(--color-template);
+  color: var(--color-text-inverse);
+  border-color: var(--color-template);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(76, 124, 201, 0.3);
+}
+
+.btn--template:active {
+  transform: translateY(0);
+}
+
+/* Template group container */
+.template-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Template badge chip */
+.template-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: var(--space-xs);
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: var(--color-success);
+  animation: fade-in 0.3s ease;
+}
+
 /* ── 8. LOCATION LIST ───────────────────────────────────── */
 .location-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 6px;
   padding-right: 2px;
+  /* Smooth scroll */
+  scroll-behavior: smooth;
+  /* Min height so empty state shows */
+  min-height: 80px;
 }
 
 /* Empty state */
@@ -559,13 +684,13 @@ ul {
   padding: var(--space-xl) var(--space-md);
   text-align: center;
   gap: var(--space-sm);
-  flex: 1;
   animation: fade-in 0.4s ease;
+  flex: 1;
 }
 
 .empty-state__icon {
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: var(--color-surface-alt);
   border: 1.5px dashed var(--color-border);
@@ -579,12 +704,12 @@ ul {
 .empty-state__title {
   font-family: "Syne", sans-serif;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--color-text-secondary);
 }
 
 .empty-state__desc {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--color-text-muted);
   line-height: 1.6;
   max-width: 200px;
@@ -595,7 +720,7 @@ ul {
   background: var(--color-surface-alt);
   border: 1.5px solid var(--color-border-soft);
   border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
+  padding: 9px var(--space-sm);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -603,9 +728,12 @@ ul {
   transition: all var(--transition-smooth);
   position: relative;
   overflow: hidden;
-  animation: slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: slide-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Prevent flex shrink issue */
+  flex-shrink: 0;
 }
 
+/* Left accent bar */
 .location-card::before {
   content: "";
   position: absolute;
@@ -616,12 +744,13 @@ ul {
   background: var(--color-accent);
   opacity: 0;
   transition: opacity var(--transition-fast);
+  border-radius: 0 2px 2px 0;
 }
 
 .location-card:hover {
   border-color: var(--color-accent);
   background: var(--color-surface);
-  transform: translateX(2px);
+  transform: translateX(3px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -633,6 +762,7 @@ ul {
   border-color: var(--color-accent);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
+  transform: translateX(3px);
 }
 
 .location-card.is-active::before {
@@ -648,7 +778,7 @@ ul {
   color: var(--color-accent);
   font-family: "Syne", sans-serif;
   font-weight: 700;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -660,7 +790,7 @@ ul {
 .location-card.is-active .card-badge {
   background: var(--color-accent);
   color: var(--color-action);
-  transform: scale(1.08);
+  transform: scale(1.1);
 }
 
 /* Card content */
@@ -670,7 +800,7 @@ ul {
 }
 
 .card-name {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: var(--color-text-primary);
   white-space: nowrap;
@@ -680,11 +810,14 @@ ul {
 }
 
 .card-coords {
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   color: var(--color-text-muted);
   font-weight: 300;
   font-style: italic;
   margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Card delete btn */
@@ -708,21 +841,7 @@ ul {
 .card-delete:hover {
   background: #fff0f0;
   color: var(--color-danger);
-}
-
-/* Drag handle */
-.card-drag {
-  color: var(--color-text-muted);
-  opacity: 0;
-  cursor: grab;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.location-card:hover .card-drag {
-  opacity: 1;
+  transform: scale(1.1);
 }
 
 /* ── 9. STATS GRID ──────────────────────────────────────── */
@@ -749,8 +868,8 @@ ul {
 }
 
 .stat-card__label {
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.67rem;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--color-text-muted);
@@ -758,10 +877,13 @@ ul {
 
 .stat-card__value {
   font-family: "Syne", sans-serif;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-text-primary);
   transition: color var(--transition-smooth);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-card:hover .stat-card__value {
@@ -775,11 +897,14 @@ ul {
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   animation: fade-in 0.4s ease;
+  /* Limit height so it doesn't push footer off screen */
+  max-height: 120px;
+  overflow-y: auto;
 }
 
 .route-info__header {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.7rem;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--color-text-muted);
@@ -787,21 +912,25 @@ ul {
   align-items: center;
   gap: var(--space-xs);
   margin-bottom: var(--space-sm);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-alt);
+  padding-bottom: 4px;
 }
 
 .route-order {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .route-order li {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 3px 0;
+  padding: 2px 0;
   border-bottom: 1px solid var(--color-border-soft);
 }
 
@@ -812,7 +941,7 @@ ul {
 .route-order li span.ro-num {
   font-family: "Syne", sans-serif;
   font-weight: 700;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--color-accent);
   width: 18px;
   flex-shrink: 0;
@@ -941,54 +1070,252 @@ ul {
   }
 }
 
-/* ── 14. CUSTOM MAP MARKER ──────────────────────────────── */
-/* Applied via Leaflet DivIcon */
-.wf-marker {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: none;
-}
+/* ── 14. CUSTOM MAP MARKER ──────────────────────────────────
+   Desain baru: bulat modern, warna dari ROUTE_COLORS (JS)
+   via CSS custom property --marker-color dan --marker-ring
+   Terdiri dari:
+     .wf-marker            — wrapper
+     .wf-marker__circle    — lingkaran berwarna (solid fill)
+     .wf-marker__num       — nomor urutan di tengah
+     .wf-marker__pulse     — animasi ring (hanya start marker)
+   Warna diinjeksi sebagai inline style oleh map.js
+──────────────────────────────────────────────────────────── */
 
-.wf-marker__pin {
-  width: 32px;
-  height: 32px;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  background: var(--color-action);
-  border: 2.5px solid var(--color-accent);
-  box-shadow: var(--shadow-md);
+/* Wrapper marker — tidak menerima pointer event agar peta tetap clickable */
+.wf-marker {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform var(--transition-spring);
+  pointer-events: none; /* event diteruskan ke map, bukan marker */
+  width: 36px;
+  height: 36px;
 }
 
-.wf-marker__pin-inner {
-  transform: rotate(45deg);
+/* Lingkaran utama — fill berwarna dari --marker-color */
+.wf-marker__circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--marker-color, #111110);
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  transition:
+    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 200ms ease;
+}
+
+/* Hover: sedikit scale up — Leaflet marker mendukung hover via CSS */
+.wf-marker:hover .wf-marker__circle {
+  transform: scale(1.15);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    0 0 0 3px var(--marker-ring, rgba(201,168,76,0.4));
+}
+
+/* Nomor urutan di tengah lingkaran */
+.wf-marker__num {
   font-family: "Syne", sans-serif;
   font-weight: 800;
-  font-size: 10px;
-  color: var(--color-accent);
+  font-size: 13px;
+  color: #ffffff;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* Turunkan font size untuk angka dua digit */
+  user-select: none;
 }
 
-.wf-marker__shadow {
-  width: 10px;
-  height: 5px;
-  background: rgba(0, 0, 0, 0.2);
+/* Pulse ring — hanya muncul pada marker pertama (isStart = true) */
+.wf-marker__pulse {
+  position: absolute;
+  inset: -4px;
   border-radius: 50%;
-  margin-top: 2px;
-  filter: blur(2px);
+  border: 2px solid var(--marker-color, #c9a84c);
+  opacity: 0;
+  animation: marker-pulse 2.2s ease-out infinite;
+  z-index: 1;
+  pointer-events: none;
 }
 
-/* Active/start marker */
-.wf-marker--start .wf-marker__pin {
-  background: var(--color-accent);
-  border-color: var(--color-action);
+@keyframes marker-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 
-.wf-marker--start .wf-marker__pin-inner {
-  color: var(--color-action);
+/* Start marker — tambahkan badge "S" background lebih terang */
+.wf-marker--start .wf-marker__circle {
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 3px 12px rgba(0, 0, 0, 0.28),
+    0 0 0 3px var(--marker-ring, rgba(201,168,76,0.45));
+}
+
+/* ── Leaflet Popup Styling ───────────────────────────────── */
+/* Reset Leaflet default dan terapkan desain custom */
+.wf-popup .leaflet-popup-content-wrapper {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.14),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e8e8e4);
+}
+
+.wf-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+.wf-popup .leaflet-popup-tip-container {
+  margin-top: -1px;
+}
+
+.wf-popup .leaflet-popup-tip {
+  background: #ffffff;
+  box-shadow: none;
+}
+
+/* Konten popup custom */
+.wf-popup-content {
+  min-width: 180px;
+  max-width: 240px;
+  font-family: "DM Sans", sans-serif;
+}
+
+/* Header: strip warna + nomor + nama */
+.wf-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-left: 4px solid #c9a84c; /* overridden by inline style */
+  background: var(--color-surface-alt, #f2f2ef);
+}
+
+/* Badge nomor di popup */
+.wf-popup-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #c9a84c; /* overridden by inline style */
+  color: #ffffff;
+  font-family: "Syne", sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Nama lokasi di popup */
+.wf-popup-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-primary, #0e0e0d);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* Koordinat di popup */
+.wf-popup-coords {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px 12px;
+  font-size: 11px;
+  color: var(--color-text-muted, #9e9e98);
+  font-style: italic;
+  font-weight: 300;
+}
+
+/* ── Leaflet Tooltip Custom ──────────────────────────────── */
+.wf-tooltip {
+  background: rgba(14, 14, 13, 0.88);
+  backdrop-filter: blur(6px);
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: "DM Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 5px 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.wf-tooltip::before {
+  /* Sembunyikan arrow default Leaflet */
+  border-top-color: rgba(14, 14, 13, 0.88) !important;
+}
+
+/* ── Segment Tooltip (hover polyline) ───────────────────── */
+.wf-seg-tooltip {
+  background: rgba(14, 14, 13, 0.82);
+  backdrop-filter: blur(5px);
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  padding: 4px 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.wf-seg-tooltip .seg-tooltip {
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Route Color Legend (sidebar footer, optional) ──────── */
+.route-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs, 4px);
+  margin-top: var(--space-xs, 4px);
+}
+
+.route-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--color-text-secondary, #5a5a56);
+  font-weight: 400;
+}
+
+.route-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 /* ── 15. TOAST ──────────────────────────────────────────── */
@@ -1031,6 +1358,9 @@ ul {
 .toast--error {
   background: var(--color-danger);
 }
+.toast--info {
+  background: var(--color-template);
+}
 
 .toast.toast--out {
   animation: toast-out 0.3s ease forwards;
@@ -1062,7 +1392,7 @@ ul {
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -1073,7 +1403,7 @@ ul {
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-10px);
   }
   to {
     opacity: 1;
@@ -1102,11 +1432,22 @@ ul {
     --topbar-h: 52px;
   }
 
+  /* Show hamburger in topbar */
+  .topbar__hamburger {
+    display: flex;
+  }
+
+  .topbar {
+    padding: 0 var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  /* Sidebar slides in from left on mobile */
   .sidebar {
-    position: absolute;
-    top: 0;
+    position: fixed;
+    top: var(--topbar-h);
     left: 0;
-    height: 100%;
+    height: calc(100dvh - var(--topbar-h));
     transform: translateX(-100%);
     z-index: 200;
     box-shadow: var(--shadow-lg);
@@ -1116,12 +1457,9 @@ ul {
     transform: translateX(0);
   }
 
+  /* Show X close button inside sidebar */
   .sidebar-toggle {
     display: flex;
-  }
-
-  .topbar {
-    padding: 0 var(--space-md);
   }
 
   .map-fab-group {
@@ -1134,20 +1472,20 @@ ul {
     font-size: 0.75rem;
     padding: 6px 14px;
   }
-
-  /* Mobile: show toggle in topbar too */
-  .topbar::before {
-    content: "";
-  }
 }
 
 @media (max-width: 480px) {
   :root {
     --sidebar-w: 100vw;
+    --topbar-h: 50px;
   }
 
   .topbar__search {
     max-width: none;
+  }
+
+  .status-pill {
+    display: none; /* hide on very small screens */
   }
 
   .stats-grid {
@@ -1160,7 +1498,7 @@ ul {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
   z-index: 150;
   animation: fade-in 0.2s ease;
