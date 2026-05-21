@@ -344,6 +344,41 @@
                 Urutan Rute Optimal
               </div>
               <ol class="route-order" id="routeOrder"></ol>
+
+              <div
+                class="route-animation-controls"
+                id="routeAnimationControls"
+                style="display: none"
+              >
+                <div class="route-animation-actions">
+                  <button
+                    class="btn btn--ghost btn--sm"
+                    id="playAnimationBtn"
+                    disabled
+                  >
+                    Putar Animasi
+                  </button>
+                  <button
+                    class="btn btn--ghost btn--sm"
+                    id="resetAnimationBtn"
+                    disabled
+                  >
+                    Reset Animasi
+                  </button>
+                </div>
+                <div class="route-animation-speed">
+                  <label for="animationSpeedRange">Kecepatan:</label>
+                  <input
+                    type="range"
+                    id="animationSpeedRange"
+                    min="150"
+                    max="1000"
+                    step="50"
+                    value="450"
+                  />
+                  <span id="animationSpeedLabel">450 ms</span>
+                </div>
+              </div>
             </div>
 
             <!-- Action buttons -->
@@ -362,6 +397,15 @@
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
                 Optimalkan Rute
+              </button>
+
+              <button
+                class="btn btn--ghost btn--sm btn--cancel"
+                id="cancelOptimizeBtn"
+                type="button"
+                style="display: none"
+              >
+                Batalkan Optimasi
               </button>
 
               <!-- Clear all button -->

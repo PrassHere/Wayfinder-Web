@@ -18,7 +18,6 @@
  * FILE INI MEMANGGIL: Tidak ada (hanya menggunakan Leaflet)
  */
 
-
 // ============================================================
 // KONSTANTA: Palet Warna Rute
 // ============================================================
@@ -50,13 +49,11 @@ const ROUTE_COLORS = [
   { stroke: "#2980b9", light: "#b9d9ee" }, // Biru tua      (segmen 8→... dst)
 ];
 
-
 // ============================================================
 // MapModule: Objek utama pengontrol peta
 // Menggunakan pola IIFE (fungsi yang langsung dieksekusi)
 // ============================================================
 const MapModule = (() => {
-
   // ----------------------------------------------------------
   // STATE INTERNAL (variabel yang menyimpan kondisi peta)
   // Semua variabel ini hanya bisa diakses dari dalam MapModule
@@ -91,6 +88,23 @@ const MapModule = (() => {
   let previewPolyline = null;
 
   /**
+   * Timer animasi rute. Disimpan agar bisa dibatalkan saat refresh/clear.
+   */
+  let routeAnimationTimers = [];
+
+  /**
+   * Lokasi yang sedang menunjukkan rute saat ini.
+   * Digunakan untuk mereset animasi dan memperbarui marker aktif.
+   */
+  let currentRouteLocations = [];
+
+  /**
+   * Callback untuk memberitahu UI indeks lokasi aktif saat animasi rute.
+   * UI akan menggunakan ini untuk menyorot daftar sidebar dan urutan rute.
+   */
+  let routeAnimationProgressCallback = null;
+
+  /**
    * Registry (direktori) marker: { id → Leaflet Marker object }
    * Contoh: { "loc_1": <MarkerObject>, "loc_2": <MarkerObject> }
    *
@@ -119,8 +133,8 @@ const MapModule = (() => {
   const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   /** Teks kredit peta yang ditampilkan di pojok bawah. */
-  const TILE_ATTRIB = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
+  const TILE_ATTRIB =
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
   // ============================================================
   // FUNGSI PUBLIC #1: init
@@ -143,10 +157,10 @@ const MapModule = (() => {
 
     // Buat peta Leaflet dan tempelkan ke elemen HTML <div id="map">
     mapInstance = L.map("map", {
-      center:           DEFAULT_CENTER, // Posisi awal (tengah Indonesia)
-      zoom:             DEFAULT_ZOOM,   // Level zoom awal
-      zoomControl:      true,           // Tampilkan tombol +/- zoom
-      attributionControl: true,         // Tampilkan kredit di pojok bawah
+      center: DEFAULT_CENTER, // Posisi awal (tengah Indonesia)
+      zoom: DEFAULT_ZOOM, // Level zoom awal
+      zoomControl: true, // Tampilkan tombol +/- zoom
+      attributionControl: true, // Tampilkan kredit di pojok bawah
     });
 
     // Pindahkan tombol zoom dari pojok kiri atas → kiri bawah
@@ -172,7 +186,6 @@ const MapModule = (() => {
     console.info("[WayFinder Map] Peta berhasil diinisialisasi ✓");
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #1: _onMapClick
   // ============================================================
@@ -188,7 +201,7 @@ const MapModule = (() => {
 
     // Cek apakah user sudah mengisi nama lokasi di input
     const nameInput = document.getElementById("locationInput");
-    const rawName   = nameInput ? nameInput.value.trim() : "";
+    const rawName = nameInput ? nameInput.value.trim() : "";
 
     // Teruskan ke UIModule untuk diproses (tambah ke state & render)
     // typeof UIModule !== "undefined" = pastikan ui.js sudah dimuat
@@ -199,7 +212,6 @@ const MapModule = (() => {
       if (nameInput) nameInput.value = "";
     }
   }
-
 
   // ============================================================
   // FUNGSI PUBLIC #2: addMarker
@@ -219,18 +231,17 @@ const MapModule = (() => {
    * @param {boolean} isStart - Apakah ini titik pertama? (tambah pulse animation)
    */
   function addMarker(id, lat, lng, label, index, isStart = false) {
-
     // Pilih warna berdasarkan nomor urutan (cyclic)
     // Contoh: index=1 → colorIdx=0, index=9 → colorIdx=0 (mulai lagi)
     const colorIdx = (index - 1) % ROUTE_COLORS.length;
-    const color    = ROUTE_COLORS[colorIdx];
+    const color = ROUTE_COLORS[colorIdx];
 
     // Buat ikon custom menggunakan DivIcon (HTML marker, bukan gambar)
     const icon = L.divIcon({
-      className: "",  // Kosongkan class default Leaflet (agar CSS kita tidak ditimpa)
-      html:      _buildMarkerHTML(index, isStart, color), // HTML marker bulat
-      iconSize:    [36, 36], // Ukuran area klik marker (px)
-      iconAnchor:  [18, 18], // Titik "jarum" marker = tengah lingkaran
+      className: "", // Kosongkan class default Leaflet (agar CSS kita tidak ditimpa)
+      html: _buildMarkerHTML(index, isStart, false, false, color), // HTML marker bulat
+      iconSize: [36, 36], // Ukuran area klik marker (px)
+      iconAnchor: [18, 18], // Titik "jarum" marker = tengah lingkaran
       popupAnchor: [0, -22], // Posisi popup relatif terhadap marker
     });
 
@@ -239,8 +250,8 @@ const MapModule = (() => {
       .addTo(markerLayerGroup)
       // Ikat popup (muncul saat marker diklik)
       .bindPopup(_buildPopupHTML(label, lat, lng, index, color), {
-        className:   "wf-popup", // Class CSS custom untuk styling popup
-        maxWidth:    240,
+        className: "wf-popup", // Class CSS custom untuk styling popup
+        maxWidth: 240,
         closeButton: true,
       });
 
@@ -251,15 +262,14 @@ const MapModule = (() => {
     // Ikat tooltip (muncul saat hover marker)
     // Format: "1. Malioboro" — nomor urutan + nama
     marker.bindTooltip(`<b>${index}.</b> ${label}`, {
-      permanent:  false,      // Hanya tampil saat hover (bukan terus-menerus)
-      direction:  "top",      // Tooltip muncul di atas marker
-      offset:     [0, -22],
-      className:  "wf-tooltip",
+      permanent: false, // Hanya tampil saat hover (bukan terus-menerus)
+      direction: "top", // Tooltip muncul di atas marker
+      offset: [0, -22],
+      className: "wf-tooltip",
     });
 
     return marker;
   }
-
 
   // ============================================================
   // FUNGSI PUBLIC #3: removeMarker
@@ -281,7 +291,6 @@ const MapModule = (() => {
     delete markerRegistry[id];
   }
 
-
   // ============================================================
   // FUNGSI PUBLIC #4: removeAllMarkers
   // ============================================================
@@ -301,7 +310,6 @@ const MapModule = (() => {
     Object.keys(markerRegistry).forEach((k) => delete markerRegistry[k]);
   }
 
-
   // ============================================================
   // FUNGSI PUBLIC #5: refreshMarkerIcons
   // ============================================================
@@ -318,22 +326,26 @@ const MapModule = (() => {
    *
    * @param {Array} locations - Array lokasi dengan urutan BARU dari TSP
    */
-  function refreshMarkerIcons(locations) {
+  function refreshMarkerIcons(locations, activeIndex = null) {
     locations.forEach((loc, idx) => {
       // Ambil marker dari registry menggunakan id lokasi
       const marker = markerRegistry[loc.id];
       if (!marker) return; // Skip jika marker tidak ditemukan
 
-      const isStart  = idx === 0;                          // Titik pertama?
-      const colorIdx = idx % ROUTE_COLORS.length;          // Warna cyclic
-      const color    = ROUTE_COLORS[colorIdx];
+      const isStart = idx === 0; // Titik pertama?
+      const isEnd = idx === locations.length - 1; // Titik terakhir?
+      const isActive = idx === activeIndex; // Target selanjutnya
+      const colorIdx = idx % ROUTE_COLORS.length; // Warna cyclic
+      const color = isEnd
+        ? { stroke: "#e05c5c", light: "#f8d0d0" }
+        : ROUTE_COLORS[colorIdx];
 
       // Buat ikon baru dengan nomor urutan yang sudah diperbarui
       const icon = L.divIcon({
-        className:   "",
-        html:        _buildMarkerHTML(idx + 1, isStart, color),
-        iconSize:    [36, 36],
-        iconAnchor:  [18, 18],
+        className: "",
+        html: _buildMarkerHTML(idx + 1, isStart, isEnd, isActive, color),
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
         popupAnchor: [0, -22],
       });
 
@@ -342,15 +354,14 @@ const MapModule = (() => {
 
       // Perbarui tooltip dengan nomor urutan baru
       marker.unbindTooltip(); // Hapus tooltip lama
-      marker.bindTooltip(`<b>${idx + 1}.</b> ${loc.name}`, {
+      marker.bindTooltip(`Tujuan ke-${idx + 1}: ${loc.name}`, {
         permanent: false,
         direction: "top",
-        offset:    [0, -22],
+        offset: [0, -22],
         className: "wf-tooltip",
       });
     });
   }
-
 
   // ============================================================
   // FUNGSI PUBLIC #6: drawRoute ← FUNGSI PALING PENTING
@@ -375,10 +386,11 @@ const MapModule = (() => {
    * @param {Array<[number,number]>} latlngs - Array koordinat [lat, lng]
    * @param {boolean} isOptimized - Mode rute
    */
-  function drawRoute(latlngs, isOptimized = false) {
+  function drawRoute(latlngs, isOptimized = false, options = {}) {
     // Langkah 1: Hapus SEMUA rute lama sebelum menggambar yang baru
     // Ini penting agar tidak terjadi penumpukan layer di peta
     clearRoute();
+    _clearRouteAnimation();
 
     // Langkah 2: Validasi — butuh minimal 2 titik untuk membuat garis
     if (!latlngs || latlngs.length < 2) return;
@@ -388,10 +400,48 @@ const MapModule = (() => {
       _drawPreviewLine(latlngs);
     } else {
       // Mode Optimized: gambar segmen berwarna terpisah
-      _drawSegmentedRoute(latlngs);
+      if (options.animate && options.locations) {
+        _animateSegmentedRoute(options.locations, options.speed || 450);
+      } else {
+        _drawSegmentedRoute(latlngs);
+      }
     }
   }
 
+  // ============================================================
+  // FUNGSI PUBLIC #? : animateRoute
+  /**
+   * Putar ulang animasi rute berdasarkan urutan lokasi yang dioptimalkan.
+   *
+   * @param {Array} locations - Array lokasi berurutan dari hasil optimasi
+   * @param {number} speed - Delay setiap segmen dalam milidetik
+   */
+  function animateRoute(locations, speed = 450) {
+    if (!locations || locations.length < 2) return;
+
+    currentRouteLocations = [...locations];
+    clearRoute();
+    _clearRouteAnimation();
+
+    refreshMarkerIcons(locations, 0);
+    routeAnimationProgressCallback?.(0);
+    _animateSegmentedRoute(locations, Math.max(100, speed));
+  }
+
+  function resetAnimation() {
+    routeAnimationProgressCallback?.(null);
+    _clearRouteAnimation();
+    if (!currentRouteLocations || currentRouteLocations.length < 2) return;
+
+    clearRoute();
+    refreshMarkerIcons(currentRouteLocations, null);
+    _drawSegmentedRoute(currentRouteLocations.map((loc) => [loc.lat, loc.lng]));
+  }
+
+  function setRouteAnimationProgressHandler(handler) {
+    routeAnimationProgressCallback =
+      typeof handler === "function" ? handler : null;
+  }
 
   // ============================================================
   // FUNGSI PRIVATE #2: _drawPreviewLine
@@ -408,15 +458,14 @@ const MapModule = (() => {
     const closedPath = [...latlngs, latlngs[0]];
 
     previewPolyline = L.polyline(closedPath, {
-      color:     "#aaaaaa", // Abu-abu
-      weight:    2,         // Ketebalan garis (px)
-      opacity:   0.55,      // Transparansi (0=tidak terlihat, 1=solid)
-      dashArray: "8, 7",    // Pola putus-putus: 8px garis, 7px spasi
-      lineCap:   "round",   // Ujung garis berbentuk bulat
-      lineJoin:  "round",   // Sambungan garis berbentuk bulat
+      color: "#aaaaaa", // Abu-abu
+      weight: 2, // Ketebalan garis (px)
+      opacity: 0.55, // Transparansi (0=tidak terlihat, 1=solid)
+      dashArray: "8, 7", // Pola putus-putus: 8px garis, 7px spasi
+      lineCap: "round", // Ujung garis berbentuk bulat
+      lineJoin: "round", // Sambungan garis berbentuk bulat
     }).addTo(mapInstance);
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #3: _drawSegmentedRoute
@@ -456,26 +505,26 @@ const MapModule = (() => {
       // ── Layer 1: Glow Effect ──────────────────────────────
       // Garis tebal & transparan → efek "cahaya" di sekitar garis utama
       const glowLine = L.polyline([point, nextPoint], {
-        color:   color.light, // Warna light (lebih pucat)
-        weight:  9,           // Sangat tebal (untuk efek glow)
-        opacity: 0.35,        // Sangat transparan
+        color: color.light, // Warna light (lebih pucat)
+        weight: 9, // Sangat tebal (untuk efek glow)
+        opacity: 0.35, // Sangat transparan
         lineCap: "round",
       }).addTo(mapInstance);
 
       // ── Layer 2: Garis Utama ──────────────────────────────
       const mainLine = L.polyline([point, nextPoint], {
-        color:    color.stroke, // Warna utama (lebih gelap/cerah)
-        weight:   3.5,          // Ketebalan normal
-        opacity:  0.9,          // Hampir solid
-        lineCap:  "round",
+        color: color.stroke, // Warna utama (lebih gelap/cerah)
+        weight: 3.5, // Ketebalan normal
+        opacity: 0.9, // Hampir solid
+        lineCap: "round",
         lineJoin: "round",
       }).addTo(mapInstance);
 
       // ── Event Hover ───────────────────────────────────────
       // Saat mouse masuk ke garis → garis menebal
       mainLine.on("mouseover", function () {
-        this.setStyle({ weight: 5.5, opacity: 1 });  // Lebih tebal & solid
-        glowLine.setStyle({ opacity: 0.55 });          // Glow lebih terang
+        this.setStyle({ weight: 5.5, opacity: 1 }); // Lebih tebal & solid
+        glowLine.setStyle({ opacity: 0.55 }); // Glow lebih terang
       });
 
       // Saat mouse keluar dari garis → kembali ke ukuran normal
@@ -486,8 +535,8 @@ const MapModule = (() => {
 
       // Tooltip saat hover garis → info segmen berapa ke berapa
       mainLine.bindTooltip(
-        `<span class="seg-tooltip">Segmen ${idx + 1} → ${(idx + 1) % total + 1}</span>`,
-        { sticky: true, className: "wf-seg-tooltip" }
+        `<span class="seg-tooltip">Segmen ${idx + 1} → ${((idx + 1) % total) + 1}</span>`,
+        { sticky: true, className: "wf-seg-tooltip" },
       );
 
       // SIMPAN KEDUA LAYER ke array routeSegments[]
@@ -496,6 +545,63 @@ const MapModule = (() => {
     });
   }
 
+  function _clearRouteAnimation() {
+    routeAnimationTimers.forEach((timer) => clearTimeout(timer));
+    routeAnimationTimers = [];
+  }
+
+  function _animateSegmentedRoute(locations, speed) {
+    const total = locations.length;
+    const delay = Math.max(100, speed);
+
+    locations.forEach((loc, idx) => {
+      const next = locations[(idx + 1) % total];
+      const startPoint = [loc.lat, loc.lng];
+      const endPoint = [next.lat, next.lng];
+      const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+
+      const timerId = setTimeout(() => {
+        // Gambar segmen yang sudah dilalui satu per satu
+        const glowLine = L.polyline([startPoint, endPoint], {
+          color: color.light,
+          weight: 9,
+          opacity: 0.35,
+          lineCap: "round",
+        }).addTo(mapInstance);
+
+        const mainLine = L.polyline([startPoint, endPoint], {
+          color: color.stroke,
+          weight: 3.5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(mapInstance);
+
+        mainLine.on("mouseover", function () {
+          this.setStyle({ weight: 5.5, opacity: 1 });
+          glowLine.setStyle({ opacity: 0.55 });
+        });
+        mainLine.on("mouseout", function () {
+          this.setStyle({ weight: 3.5, opacity: 0.95 });
+          glowLine.setStyle({ opacity: 0.35 });
+        });
+
+        mainLine.bindTooltip(
+          `<span class="seg-tooltip">Segmen ${idx + 1} → ${((idx + 1) % total) + 1}</span>`,
+          { sticky: true, className: "wf-seg-tooltip" },
+        );
+
+        routeSegments.push(glowLine, mainLine);
+
+        // Highlight marker selanjutnya
+        const nextIndex = (idx + 1) % total;
+        refreshMarkerIcons(locations, nextIndex);
+        routeAnimationProgressCallback?.(nextIndex);
+      }, idx * delay);
+
+      routeAnimationTimers.push(timerId);
+    });
+  }
 
   // ============================================================
   // FUNGSI PUBLIC #7: clearRoute
@@ -512,6 +618,8 @@ const MapModule = (() => {
    * Lama-kelamaan browser bisa jadi lambat atau crash.
    */
   function clearRoute() {
+    _clearRouteAnimation();
+
     // Hapus setiap polyline yang tersimpan di array routeSegments
     routeSegments.forEach((layer) => {
       // hasLayer() = cek dulu apakah layer ini masih ada di peta
@@ -530,7 +638,6 @@ const MapModule = (() => {
       previewPolyline = null; // Set ke null agar garbage collector bisa bebas
     }
   }
-
 
   // ============================================================
   // FUNGSI PUBLIC #8: fitBoundsToMarkers
@@ -559,7 +666,6 @@ const MapModule = (() => {
     });
   }
 
-
   // ============================================================
   // FUNGSI PUBLIC #9: panToMarker
   // ============================================================
@@ -582,7 +688,6 @@ const MapModule = (() => {
     marker.openPopup();
   }
 
-
   // ============================================================
   // FUNGSI PUBLIC #10: resetView
   // ============================================================
@@ -593,7 +698,6 @@ const MapModule = (() => {
   function resetView() {
     mapInstance.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true });
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #4: _initFabControls
@@ -607,14 +711,13 @@ const MapModule = (() => {
    *   fitBoundsBtn  → Sesuaikan zoom ke semua marker
    */
   function _initFabControls() {
-    const centerBtn    = document.getElementById("centerMapBtn");
+    const centerBtn = document.getElementById("centerMapBtn");
     const fitBoundsBtn = document.getElementById("fitBoundsBtn");
 
     // Optional chaining (?.) = hanya pasang event jika elemen ditemukan
     centerBtn?.addEventListener("click", resetView);
     fitBoundsBtn?.addEventListener("click", fitBoundsToMarkers);
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #5: _buildMarkerHTML
@@ -638,16 +741,18 @@ const MapModule = (() => {
    * @param {object}  color   - { stroke, light } dari ROUTE_COLORS
    * @returns {string} HTML string
    */
-  function _buildMarkerHTML(index, isStart, color) {
+  function _buildMarkerHTML(index, isStart, isEnd, isActive, color) {
     // Warna default jika color tidak tersedia (sebelum optimasi)
-    const bg      = color ? color.stroke : "#111110";
-    const ringClr = color ? color.light  : "#f0e4bb";
+    const bg = color ? color.stroke : "#111110";
+    const ringClr = color ? color.light : "#f0e4bb";
 
-    // Class tambahan khusus marker pertama
+    // Kelas tambahan untuk marker khusus
     const startClass = isStart ? "wf-marker--start" : "";
+    const endClass = isEnd ? "wf-marker--end" : "";
+    const activeClass = isActive ? "wf-marker--active" : "";
 
     return `
-      <div class="wf-marker ${startClass}"
+      <div class="wf-marker ${startClass} ${endClass} ${activeClass}"
            style="--marker-color: ${bg}; --marker-ring: ${ringClr};">
 
         <!-- Lingkaran berwarna dengan nomor di tengah -->
@@ -655,12 +760,11 @@ const MapModule = (() => {
           <span class="wf-marker__num">${index}</span>
         </div>
 
-        <!-- Animasi ring pulse — hanya muncul jika isStart = true -->
-        ${isStart ? '<div class="wf-marker__pulse"></div>' : ""}
+        <!-- Animasi ring pulse — tampilkan jika marker pertama atau aktif -->
+        ${isStart || isActive ? '<div class="wf-marker__pulse"></div>' : ""}
       </div>
     `;
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #6: _buildPopupHTML
@@ -693,7 +797,7 @@ const MapModule = (() => {
         <!-- Header: strip warna kiri + badge nomor + nama lokasi -->
         <div class="wf-popup-header" style="border-left-color: ${accentColor};">
           <span class="wf-popup-num" style="background: ${accentColor};">${index}</span>
-          <span class="wf-popup-name">${label}</span>
+          <span class="wf-popup-name">Tujuan ke-${index} — ${label}</span>
         </div>
 
         <!-- Koordinat GPS -->
@@ -712,23 +816,24 @@ const MapModule = (() => {
     `;
   }
 
-
   // ============================================================
   // PUBLIC API — Daftar fungsi yang bisa diakses dari luar
   // ============================================================
   // ui.js hanya bisa memanggil fungsi yang ada di sini.
   // Fungsi dengan nama diawali '_' tetap tersembunyi (private).
   return {
-    init,               // Inisialisasi peta (dipanggil sekali)
-    addMarker,          // Tambah 1 marker ke peta
-    removeMarker,       // Hapus 1 marker dari peta
-    removeAllMarkers,   // Hapus semua marker
+    init, // Inisialisasi peta (dipanggil sekali)
+    addMarker, // Tambah 1 marker ke peta
+    removeMarker, // Hapus 1 marker dari peta
+    removeAllMarkers, // Hapus semua marker
     refreshMarkerIcons, // Perbarui angka di marker setelah optimasi
-    drawRoute,          // Gambar garis rute (preview/optimized)
-    clearRoute,         // Hapus semua garis rute
+    drawRoute, // Gambar garis rute (preview/optimized)
+    animateRoute, // Putar ulang animasi rute berdasarkan urutan perjalanan
+    resetAnimation, // Reset animasi dan tampilkan rute statis
+    clearRoute, // Hapus semua garis rute
     fitBoundsToMarkers, // Zoom peta agar semua marker terlihat
-    panToMarker,        // Geser peta ke 1 marker tertentu
-    resetView,          // Kembali ke posisi Indonesia
+    panToMarker, // Geser peta ke 1 marker tertentu
+    resetView, // Kembali ke posisi Indonesia
+    setRouteAnimationProgressHandler,
   };
-
 })(); // ← Tutup dan langsung eksekusi IIFE

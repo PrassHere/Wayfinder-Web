@@ -1,8 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
    WayFinder — style.css
-   Aesthetic: Monochrome precision + warm gold accent
-   Fonts: Syne (display) + DM Sans (body)
-   Updated: Template Wisata + Layout Fix + Responsive
 ═══════════════════════════════════════════════════════════ */
 
 /* ── 1. CSS CUSTOM PROPERTIES ──────────────────────────── */
@@ -11,7 +8,7 @@
   --color-bg: #f7f7f5;
   --color-surface: #ffffff;
   --color-surface-alt: #f2f2ef;
-  --color-surface-hover: #ebebе7;
+  --color-surface-hover: #ebebe7;
   --color-border: #e8e8e4;
   --color-border-soft: #f0f0ec;
 
@@ -614,6 +611,16 @@ ul {
   border-color: rgba(201, 76, 76, 0.3);
 }
 
+.btn--cancel {
+  border-color: rgba(220, 38, 38, 0.18);
+  color: var(--color-danger);
+}
+
+.btn--cancel:hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-danger);
+}
+
 .btn--sm {
   padding: 7px var(--space-md);
   font-size: 0.82rem;
@@ -924,6 +931,45 @@ ul {
   gap: 3px;
 }
 
+.route-animation-controls {
+  margin-top: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.route-animation-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.route-animation-speed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.route-animation-speed label {
+  min-width: 70px;
+}
+
+.route-animation-speed input[type="range"] {
+  flex: 1;
+}
+
+.route-animation-speed span {
+  min-width: 52px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 .route-order li {
   font-size: 0.8rem;
   color: var(--color-text-secondary);
@@ -936,6 +982,18 @@ ul {
 
 .route-order li:last-child {
   border-bottom: none;
+}
+
+.route-order li.route-step {
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.route-order li.route-step.is-active {
+  background: rgba(33, 113, 255, 0.08);
+  transform: translateX(2px);
+  border-radius: 8px;
 }
 
 .route-order li span.ro-num {
@@ -1117,7 +1175,7 @@ ul {
   transform: scale(1.15);
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.28),
-    0 0 0 3px var(--marker-ring, rgba(201,168,76,0.4));
+    0 0 0 3px var(--marker-ring, rgba(201, 168, 76, 0.4));
 }
 
 /* Nomor urutan di tengah lingkaran */
@@ -1165,7 +1223,24 @@ ul {
   border: 3px solid rgba(255, 255, 255, 0.95);
   box-shadow:
     0 3px 12px rgba(0, 0, 0, 0.28),
-    0 0 0 3px var(--marker-ring, rgba(201,168,76,0.45));
+    0 0 0 3px var(--marker-ring, rgba(201, 168, 76, 0.45));
+}
+
+.wf-marker--end .wf-marker__circle {
+  background: #e05c5c !important;
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+.wf-marker--active .wf-marker__circle {
+  transform: scale(1.18);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.28),
+    0 0 0 5px rgba(255, 255, 255, 0.24);
+}
+
+.wf-marker--active .wf-marker__pulse {
+  opacity: 0.75;
+  animation-duration: 1.8s;
 }
 
 /* ── Leaflet Popup Styling ───────────────────────────────── */

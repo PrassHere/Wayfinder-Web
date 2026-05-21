@@ -2,12 +2,6 @@
 # ──────────────────────────────────────
 # Install semua dependensi dengan perintah:
 #     pip install -r requirements.txt
-#
-# Disarankan menggunakan virtual environment:
-#     python -m venv venv
-#     source venv/bin/activate        # Linux / macOS
-#     venv\Scripts\activate           # Windows
-#     pip install -r requirements.txt
 
 # Web framework utama
 Flask==3.0.3

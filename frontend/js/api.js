@@ -8,9 +8,9 @@
  * dan server Python (backend). Semua pengiriman data ke server
  * harus melewati file ini.
  *
- * SAAT INI: Berjalan dalam mode DUMMY (simulasi tanpa server).
- * Artinya semua perhitungan dilakukan di browser sendiri.
- * Kalau backend sudah aktif, tinggal ganti beberapa baris saja.
+ * SAAT INI: Berjalan dalam mode BACKEND (menggunakan server Python).
+ * Artinya semua perhitungan TSP dilakukan di server dengan algoritma Brute Force.
+ * Frontend Nearest Neighbor tetap ada sebagai fallback/reference pembelajaran.
  *
  * POLA DESAIN yang digunakan: Module Pattern (IIFE)
  * → Semua kode dibungkus dalam fungsi yang langsung dipanggil
@@ -24,7 +24,6 @@
 // Artinya: fungsi ini langsung dieksekusi saat file dimuat
 // ============================================================
 const ApiModule = (() => {
-
   // ----------------------------------------------------------
   // KONFIGURASI
   // ----------------------------------------------------------
@@ -34,15 +33,14 @@ const ApiModule = (() => {
    * Saat backend sudah jalan, ganti ini dengan URL yang benar.
    * Contoh: "http://localhost:5000"
    */
-  const BASE_URL = "https://api.wayfinder.app/v1"; // TODO: ganti saat backend siap
+  const BASE_URL = "http://localhost:5000";
 
   /**
    * Batas waktu menunggu respons server (dalam milidetik).
    * 10_000 ms = 10 detik.
    * Kalau server tidak merespons dalam 10 detik → otomatis batal.
    */
-  const REQUEST_TIMEOUT_MS = 10_000;
-
+  const REQUEST_TIMEOUT_MS = 60_000;
 
   // ============================================================
   // FUNGSI PUBLIC #1: optimizeRoute
@@ -68,27 +66,85 @@ const ApiModule = (() => {
    * CATATAN: Fungsi ini adalah "async" karena menunggu respons
    * dari server/simulasi yang bisa memakan waktu beberapa detik.
    */
+  let currentOptimizeController = null;
+
   async function optimizeRoute(locations) {
-
-    // [MODE DUMMY] ─────────────────────────────────────────────
-    // Saat ini tidak benar-benar ke server, tapi ke fungsi simulasi.
-    // Hapus baris ini dan aktifkan kode di bawah saat backend siap.
-    return _dummyOptimize(locations);
-
     // [MODE BACKEND] ─────────────────────────────────────────────
-    // Aktifkan ini saat backend sudah berjalan:
-    //
-    // const response = await _fetchWithTimeout(`${BASE_URL}/optimize`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({
-    //     // Backend hanya butuh koordinat (tanpa id/name)
-    //     points: locations.map(l => [l.lat, l.lng])
-    //   }),
-    // });
-    // return await response.json();
+    // Menggunakan backend Python dengan algoritma Brute Force untuk hasil optimal.
+    // Backend harus sudah berjalan di http://127.0.0.1:5000
+    currentOptimizeController?.abort();
+    currentOptimizeController = new AbortController();
+
+    try {
+      const response = await _fetchWithTimeout(`${BASE_URL}/api/optimize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // Backend hanya butuh koordinat (tanpa id/name)
+          points: locations.map((l) => [l.lat, l.lng]),
+        }),
+        signal: currentOptimizeController.signal,
+      });
+
+      const backendResult = await response.json();
+
+      if (backendResult.status === "error") {
+        throw new Error(
+          backendResult.message || "Backend gagal menghitung optimasi rute",
+        );
+      }
+
+      // Konversi format backend ke format yang diharapkan frontend dengan mencocokkan koordinat secara akurat
+      // Backend: { best_route: [[lat,lng],...], total_distance: km, total_permutations: n }
+      // Frontend: { orderedLocations: [...], totalDistanceKm: km, estimatedMinutes: min }
+      const orderedLocations = backendResult.best_route.map((point) => {
+        // Cari lokasi asli yang memiliki koordinat yang sama (dengan toleransi float)
+        const found = locations.find(
+          (loc) => Math.abs(loc.lat - point[0]) < 1e-6 && Math.abs(loc.lng - point[1]) < 1e-6
+        );
+        return found
+          ? { ...found }
+          : {
+              id: `loc_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              name: `Titik (${point[0].toFixed(4)}, ${point[1].toFixed(4)})`,
+              lat: point[0],
+              lng: point[1],
+            };
+      });
+
+      // Estimasi waktu tempuh (asumsi 40 km/jam)
+      const AVG_SPEED_KMH = 40;
+      const estimatedMinutes = Math.round(
+        (backendResult.total_distance / AVG_SPEED_KMH) * 60,
+      );
+
+      return {
+        orderedLocations,
+        totalDistanceKm: backendResult.total_distance,
+        estimatedMinutes,
+      };
+    } catch (err) {
+      // Jika backend tidak tersedia atau terjadi error server,
+      // lempar error ke ui.js agar ditampilkan kepada user.
+      console.error("[ApiModule] Gagal memanggil backend:", err);
+      throw err;
+    } finally {
+      currentOptimizeController = null;
+    }
   }
 
+  function abortOptimize() {
+    if (currentOptimizeController) {
+      currentOptimizeController.abort();
+      currentOptimizeController = null;
+    }
+  }
+
+  // [MODE FRONTEND - DINONAKTIFKAN] ─────────────────────────────
+  // Frontend optimization menggunakan algoritma Nearest Neighbor.
+  // Dinonaktifkan sementara karena optimasi sekarang menggunakan backend Python Brute Force.
+  // Kode ini tetap dipertahankan sebagai fallback/reference pembelajaran.
+  // return _dummyOptimize(locations);
 
   // ============================================================
   // FUNGSI PUBLIC #2: reverseGeocode
@@ -108,7 +164,6 @@ const ApiModule = (() => {
    * @returns {Promise<string>} - Nama tempat
    */
   async function reverseGeocode(lat, lng) {
-
     // [MODE DUMMY] ─────────────────────────────────────────────
     // Kembalikan label koordinat sederhana sebagai nama default.
     return _dummyReverseGeocode(lat, lng);
@@ -122,7 +177,6 @@ const ApiModule = (() => {
     // const data = await response.json();
     // return data.displayName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
-
 
   // ============================================================
   // FUNGSI PUBLIC #3: searchLocation
@@ -144,7 +198,6 @@ const ApiModule = (() => {
     // Kembalikan array kosong (belum ada implementasi)
     return [];
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #1: _fetchWithTimeout
@@ -171,18 +224,36 @@ const ApiModule = (() => {
    * @param {number} timeout - Batas waktu dalam ms (default: 10 detik)
    * @returns {Promise<Response>} - Objek Response dari fetch
    */
-  async function _fetchWithTimeout(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
-
+  async function _fetchWithTimeout(
+    url,
+    options = {},
+    timeout = REQUEST_TIMEOUT_MS,
+  ) {
     // AbortController = alat untuk membatalkan fetch dari luar
     const controller = new AbortController();
+    let timedOut = false;
+
+    // Jika pemanggil menyediakan signal, sambungkan ke controller internal
+    if (options.signal) {
+      if (options.signal.aborted) {
+        controller.abort();
+      } else {
+        options.signal.addEventListener("abort", () => controller.abort(), {
+          once: true,
+        });
+      }
+    }
 
     // Atur timer: setelah `timeout` ms, batalkan request
-    const timerId = setTimeout(() => controller.abort(), timeout);
+    const timerId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
 
     try {
       const response = await fetch(url, {
-        ...options,                    // Spread opsi yang dikirim
-        signal: controller.signal,     // Pasang "remote control"
+        ...options, // Spread opsi yang dikirim
+        signal: controller.signal, // Pasang "remote control"
       });
 
       // Jika server merespons dengan kode error (4xx, 5xx)
@@ -191,15 +262,29 @@ const ApiModule = (() => {
       }
 
       return response;
-
     } catch (err) {
-      // Jika error karena timeout (bukan error lain)
+      // Jika error karena timeout atau pembatalan
       if (err.name === "AbortError") {
-        throw new Error("Request timeout — server tidak merespons");
+        if (timedOut) {
+          throw new Error("Request timeout — server tidak merespons");
+        }
+
+        if (options.signal && options.signal.aborted) {
+          throw new Error("Optimasi dibatalkan oleh pengguna");
+        }
+
+        throw new Error("Request dibatalkan");
       }
+
+      // Jika fetch gagal karena masalah jaringan atau backend mati
+      if (err instanceof TypeError) {
+        throw new Error(
+          `Gagal menghubungi backend ${url}. Pastikan server Python dijalankan di http://127.0.0.1:5000 dan tidak ada masalah koneksi.`,
+        );
+      }
+
       // Lemparkan error lain apa adanya ke pemanggil
       throw err;
-
     } finally {
       // SELALU bersihkan timer, baik sukses maupun gagal
       // (mencegah timer terus berjalan dan menyebabkan bug)
@@ -207,6 +292,12 @@ const ApiModule = (() => {
     }
   }
 
+  async function healthCheck() {
+    const response = await _fetchWithTimeout(`${BASE_URL}/api/health`, {
+      method: "GET",
+    });
+    return await response.json();
+  }
 
   // ============================================================
   // FUNGSI PRIVATE #2: _dummyOptimize
@@ -232,7 +323,6 @@ const ApiModule = (() => {
    * @returns {Promise<object>} - Hasil optimasi dummy
    */
   async function _dummyOptimize(locations) {
-
     // Simulasikan "waktu proses" server (1.2 detik)
     // Ini agar UI terasa realistis (ada spinner loading)
     await _simulateDelay(1200);
@@ -246,7 +336,7 @@ const ApiModule = (() => {
 
     // Buat salinan array (agar array asli tidak berubah)
     const unvisited = [...locations]; // Titik yang belum dikunjungi
-    const ordered   = [];            // Titik yang sudah diurutkan
+    const ordered = []; // Titik yang sudah diurutkan
 
     // Mulai dari titik pertama
     let current = unvisited.shift(); // Ambil dan hapus elemen pertama
@@ -254,7 +344,7 @@ const ApiModule = (() => {
 
     // Selama masih ada titik yang belum dikunjungi
     while (unvisited.length > 0) {
-      let nearestIdx  = 0;        // Indeks titik terdekat
+      let nearestIdx = 0; // Indeks titik terdekat
       let nearestDist = Infinity; // Jarak terdekat (mulai dari tak terhingga)
 
       // Cari titik yang paling dekat dari posisi sekarang
@@ -262,7 +352,7 @@ const ApiModule = (() => {
         const dist = _haversineKm(current.lat, current.lng, loc.lat, loc.lng);
         if (dist < nearestDist) {
           nearestDist = dist;
-          nearestIdx  = idx;
+          nearestIdx = idx;
         }
       });
 
@@ -283,17 +373,16 @@ const ApiModule = (() => {
 
     // ── Estimasi waktu tempuh ───────────────────────────────
     // Asumsi kecepatan rata-rata kendaraan wisata = 40 km/jam
-    const AVG_SPEED_KMH  = 40;
+    const AVG_SPEED_KMH = 40;
     const estimatedMinutes = Math.round((totalKm / AVG_SPEED_KMH) * 60);
 
     // Kembalikan hasil
     return {
       orderedLocations: ordered,
-      totalDistanceKm:  parseFloat(totalKm.toFixed(2)), // Bulatkan 2 desimal
+      totalDistanceKm: parseFloat(totalKm.toFixed(2)), // Bulatkan 2 desimal
       estimatedMinutes,
     };
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #3: _dummyReverseGeocode
@@ -306,7 +395,6 @@ const ApiModule = (() => {
     await _simulateDelay(50); // Sedikit delay agar terasa realistis
     return `Lokasi (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #4: _haversineKm
@@ -329,7 +417,7 @@ const ApiModule = (() => {
    * @returns {number} - Jarak dalam kilometer
    */
   function _haversineKm(lat1, lng1, lat2, lng2) {
-    const R    = 6371; // Radius bumi dalam km
+    const R = 6371; // Radius bumi dalam km
     const dLat = _deg2rad(lat2 - lat1); // Selisih latitude → radian
     const dLng = _deg2rad(lng2 - lng1); // Selisih longitude → radian
 
@@ -348,7 +436,6 @@ const ApiModule = (() => {
     return R * c;
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #5: _deg2rad
   // ============================================================
@@ -364,7 +451,6 @@ const ApiModule = (() => {
   function _deg2rad(deg) {
     return deg * (Math.PI / 180);
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #6: _simulateDelay
@@ -384,16 +470,16 @@ const ApiModule = (() => {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-
   // ============================================================
   // PUBLIC API — Fungsi yang bisa diakses dari file lain
   // ============================================================
   // Hanya fungsi yang terdaftar di sini yang bisa dipanggil
   // dari ui.js. Fungsi dengan nama diawali '_' tetap tersembunyi.
   return {
-    optimizeRoute,   // Dipanggil ui.js saat tombol "Optimalkan" diklik
-    reverseGeocode,  // Dipanggil ui.js saat user klik peta tanpa nama
-    searchLocation,  // Placeholder — belum diimplementasikan
+    optimizeRoute, // Dipanggil ui.js saat tombol "Optimalkan" diklik
+    abortOptimize, // Batalkan permintaan optimasi yang sedang berjalan
+    healthCheck, // Digunakan ui.js untuk cek koneksi backend saat startup
+    reverseGeocode, // Dipanggil ui.js saat user klik peta tanpa nama
+    searchLocation, // Placeholder — belum diimplementasikan
   };
-
 })(); // ← Tutup IIFE dan langsung panggil (() => {...})()

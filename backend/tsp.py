@@ -51,7 +51,7 @@ from distance import build_distance_matrix, total_route_distance
 # ── Konstanta ─────────────────────────────────────────────────
 # Batas maksimum titik yang aman untuk algoritma Brute Force.
 # Di atas ini, server akan terlalu lama merespons.
-MAX_POINTS_BRUTE_FORCE = 10
+MAX_POINTS_BRUTE_FORCE = 12
 
 
 def solve_tsp_brute_force(points: list) -> dict:
@@ -60,7 +60,7 @@ def solve_tsp_brute_force(points: list) -> dict:
 
     LANGKAH-LANGKAH ALGORITMA:
     ┌─────────────────────────────────────────────────────────────┐
-    │ 1. Validasi input (minimal 2, maksimal 10 titik)            │
+    │ 1. Validasi input (minimal 2, maksimal 12 titik)            │
     │                                                             │
     │ 2. Bangun matriks jarak antar semua titik                   │
     │    (menggunakan build_distance_matrix dari distance.py)     │
@@ -92,7 +92,7 @@ def solve_tsp_brute_force(points: list) -> dict:
 
     Parameter:
         points (list): Daftar koordinat → [[lat, lng], [lat, lng], ...]
-                       Minimal 2, Maksimal MAX_POINTS_BRUTE_FORCE (10)
+                       Minimal 2, Maksimal MAX_POINTS_BRUTE_FORCE (12)
 
     Return:
         dict: {
@@ -103,7 +103,7 @@ def solve_tsp_brute_force(points: list) -> dict:
         }
 
     Raises:
-        ValueError: Jika jumlah titik kurang dari 2 atau lebih dari 10
+        ValueError: Jika jumlah titik kurang dari 2 atau lebih dari12
     """
     n = len(points)  # Jumlah titik yang dikirim
 

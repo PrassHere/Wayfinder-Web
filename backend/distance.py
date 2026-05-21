@@ -50,9 +50,9 @@ def haversine(coord1: tuple, coord2: tuple) -> float:
     │ 2. Hitung selisih latitude dan longitude                │
     │                                                         │
     │ 3. Terapkan rumus Haversine:                            │
-    │    a = sin²(Δlat/2) + cos(lat1)·cos(lat2)·sin²(Δlng/2) │
-    │    c = 2·atan2(√a, √(1-a))                             │
-    │    d = R·c   (R = radius bumi = 6371 km)               │
+    │    a = sin²(Δlat/2) + cos(lat1)·cos(lat2)·sin²(Δlng/2)  │
+    │    c = 2·atan2(√a, √(1-a))                              │
+    │    d = R·c   (R = radius bumi = 6371 km)                │
     └─────────────────────────────────────────────────────────┘
 
     Parameter:

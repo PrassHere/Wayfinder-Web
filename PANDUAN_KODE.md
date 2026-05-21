@@ -318,10 +318,8 @@ locations = [
 const result = await ApiModule.optimizeRoute(locations);
 ```
 
-> ⚠️ **Mode Dummy:** Saat ini fungsi ini tidak benar-benar ke backend.
-> Ia memanggil `_dummyOptimize()` yang menjalankan algoritma di browser sendiri.
-> Untuk hubungkan ke backend, ganti baris `return _dummyOptimize(locations);`
-> dengan `fetch()` ke `POST /api/optimize`.
+> ✅ **Status:** Fungsi ini sekarang menggunakan backend Python dengan algoritma Brute Force.
+> Kode Nearest Neighbor tetap dipertahankan sebagai komentar untuk referensi pembelajaran.
 
 ---
 
@@ -1200,6 +1198,251 @@ Fungsi ini hanya untuk **logging di konsol server** (debugging), tidak dikirim k
 
 ---
 
+### Penjelasan Detail Algoritma Brute Force
+
+Algoritma brute force yang digunakan dalam kode ini adalah pendekatan dasar untuk menyelesaikan masalah Travelling Salesman Problem (TSP). Berikut adalah penjelasan lengkap dan mudah dipahami mengenai algoritma ini, disesuaikan dengan implementasi pada kode Python di atas.
+
+#### 1. Pengertian Algoritma Brute Force Secara Umum
+
+Brute force adalah metode penyelesaian masalah dengan cara **mencoba semua kemungkinan solusi yang ada**, kemudian memilih solusi terbaik di antara semuanya. Istilah "brute force" berasal dari kata "brute" yang berarti kasar atau paksa, dan "force" yang berarti kekuatan, sehingga secara harfiah berarti "kekuatan kasar". 
+
+Dalam konteks komputasi, brute force adalah pendekatan yang **sederhana dan langsung** — kita tidak menggunakan trik atau heuristik cerdas, melainkan **memeriksa setiap kemungkinan satu per satu** sampai menemukan yang terbaik.
+
+#### 2. Cara Kerja Brute Force pada Kode Ini Langkah Demi Langkah
+
+Pada kode `solve_tsp_brute_force(points)`, algoritma brute force diterapkan sebagai berikut:
+
+**Langkah 1: Persiapan Awal**
+- Terima daftar koordinat titik-titik yang akan dikunjungi
+- Validasi jumlah titik (minimal 2, maksimal 10)
+- Bangun matriks jarak menggunakan `build_distance_matrix(points)` — ini adalah tabel yang berisi jarak antara setiap pasang titik
+
+**Langkah 2: Menentukan Titik Awal**
+- Tetapkan titik pertama (indeks 0) sebagai titik awal yang tetap
+- Buat daftar indeks titik lainnya yang akan dipermutasi: `[1, 2, 3, ..., n-1]`
+
+**Langkah 3: Proses Pencarian Utama (Loop Brute Force)**
+- Gunakan `itertools.permutations(other_indices)` untuk menghasilkan semua kemungkinan urutan titik lainnya
+- Untuk setiap permutasi:
+  - Gabungkan titik awal dengan permutasi saat ini: `[0] + list(perm)`
+  - Hitung total jarak rute menggunakan `total_route_distance()`
+  - Jika jarak ini lebih kecil dari jarak terbaik sebelumnya, simpan sebagai yang terbaik
+
+**Langkah 4: Mengembalikan Hasil**
+- Urutkan koordinat sesuai urutan indeks terbaik
+- Kembalikan rute optimal, urutan indeks, total jarak, dan jumlah permutasi yang dicoba
+
+#### 3. Bagaimana Proses Pencarian Dilakukan Sampai Menemukan Hasil Terbaik
+
+Proses pencarian dilakukan melalui **iterasi lengkap** atas semua kemungkinan:
+
+1. **Inisialisasi**: Mulai dengan jarak terbaik = tak terhingga (∞), dan rute terbaik = kosong
+2. **Iterasi Permutasi**: Untuk setiap urutan yang mungkin dari titik-titik selain awal
+3. **Evaluasi**: Hitung jarak total untuk rute tersebut
+4. **Pembandingan**: Jika jarak rute ini lebih kecil dari jarak terbaik saat ini, update jarak terbaik dan simpan rute ini
+5. **Penyelesaian**: Setelah semua permutasi dicoba, rute dengan jarak terkecil adalah solusi optimal
+
+Contoh dengan 4 titik (A, B, C, D):
+- Titik awal: A (tetap)
+- Permutasi titik lainnya: B, C, D
+- Kemungkinan rute yang dicoba:
+  - A → B → C → D → A (jarak: 45 km)
+  - A → B → D → C → A (jarak: 38 km) ← **terbaik sementara**
+  - A → C → B → D → A (jarak: 42 km)
+  - A → C → D → B → A (jarak: 38 km) ← sama dengan terbaik
+  - A → D → B → C → A (jarak: 42 km)
+  - A → D → C → B → A (jarak: 45 km)
+- Hasil: A → B → D → C → A dengan jarak 38 km
+
+#### 4. Kenapa Algoritma Ini Disebut Brute Force
+
+Algoritma ini disebut brute force karena:
+- **Tidak ada kecerdasan**: Tidak menggunakan heuristik, pola, atau aturan khusus untuk mempersempit pencarian
+- **Mencoba semuanya**: Mengeksplorasi setiap kemungkinan tanpa terkecuali
+- **Paksaan kasar**: Mengandalkan kekuatan komputasi murni untuk menyelesaikan masalah
+- **Komprehensif**: Dijamin menemukan solusi optimal karena memeriksa semua alternatif
+
+Istilah ini sering digunakan untuk membedakan dari algoritma "cerdas" seperti algoritma greedy atau dynamic programming yang menggunakan strategi optimasi.
+
+#### 5. Kelebihan dan Kekurangan Algoritma Brute Force
+
+**Kelebihan:**
+- **Jaminan optimalitas**: Selalu menemukan solusi terbaik karena memeriksa semua kemungkinan
+- **Sederhana**: Mudah dipahami dan diimplementasikan
+- **Tidak memerlukan pengetahuan domain**: Tidak perlu memahami karakteristik masalah khusus
+- **Deterministik**: Hasil selalu sama untuk input yang sama
+
+**Kekurangan:**
+- **Kompleksitas waktu tinggi**: Waktu eksekusi tumbuh secara faktorial — O((n-1)!) untuk TSP
+- **Tidak scalable**: Hanya praktis untuk masalah kecil (dalam kode ini, maksimal 10 titik)
+- **Inefisien**: Banyak komputasi yang sia-sia karena mencoba solusi yang jelas buruk
+- **Resource-intensive**: Membutuhkan memori dan CPU yang signifikan untuk masalah besar
+
+#### 6. Analogi Sederhana Agar Mudah Dipahami
+
+Bayangkan Anda ingin mencari kunci yang hilang di rumah. Dengan brute force:
+- Anda **memeriksa setiap laci, setiap rak, setiap sudut** satu per satu
+- **Tidak ada trik khusus** — hanya teliti dan sistematis
+- **Dijamin menemukan** kunci jika memang ada di rumah
+- Tapi jika rumah besar, **akan memakan waktu lama**
+
+Sebaliknya, metode cerdas mungkin: "Kunci biasanya di meja depan" — langsung cek tempat yang paling mungkin dulu.
+
+Untuk TSP, brute force seperti: "Coba semua rute bus yang mungkin, pilih yang paling cepat" vs metode cerdas: "Mulai dari pusat kota, kunjungi tempat terdekat berikutnya".
+
+#### 7. Bagian Kode Python yang Berhubungan Langsung dengan Proses Brute Force
+
+Berikut adalah bagian-bagian kode yang langsung terlibat dalam algoritma brute force, dengan komentar penjelasan:
+
+```python
+# Persiapan variabel untuk brute force
+start_index = 0                  # Titik awal tetap (indeks 0)
+other_indices = list(range(1, n))  # Indeks titik lain yang akan dipermutasi
+best_distance = float('inf')      # Jarak terbaik dimulai dari tak terhingga
+best_order = []                   # Urutan terbaik akan disimpan di sini
+count = 0                         # Counter untuk menghitung jumlah percobaan
+
+# Loop utama brute force - mencoba semua permutasi
+for perm in permutations(other_indices):  # permutations() menghasilkan semua urutan
+    count += 1                            # Hitung setiap rute yang dicoba
+    
+    # Gabungkan titik awal dengan permutasi saat ini
+    current_route = [start_index] + list(perm)  # Contoh: [0, 2, 1, 3]
+    
+    # Hitung jarak total rute ini (termasuk kembali ke awal)
+    current_distance = total_route_distance(current_route, distance_matrix)
+    
+    # Jika rute ini lebih baik dari yang terbaik sejauh ini
+    if current_distance < best_distance:
+        best_distance = current_distance  # Update jarak terbaik
+        best_order = current_route        # Simpan urutan terbaik
+```
+
+#### 8. Ilustrasi Alur Proses Brute Force
+
+```
+Input: 4 titik (A, B, C, D)
+Titik awal tetap: A
+
+┌─────────────────────────────────────────────────────────────┐
+│                    PROSES BRUTE FORCE                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Permutasi yang dicoba:                                     │
+│  1. A → B → C → D → A     Hitung jarak: 45 km               │
+│  2. A → B → D → C → A     Hitung jarak: 38 km  ← Terbaik!   │
+│  3. A → C → B → D → A     Hitung jarak: 42 km               │
+│  4. A → C → D → B → A     Hitung jarak: 38 km  (sama baik)  │
+│  5. A → D → B → C → A     Hitung jarak: 42 km               │
+│  6. A → D → C → B → A     Hitung jarak: 45 km               │
+│                                                             │
+│  Hasil: A → B → D → C → A dengan jarak 38 km                │
+│                                                             │
+│  Jumlah percobaan: 6 = (4-1)! = 3! = 6                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Perbedaan Proses Optimasi Rute: Frontend vs Backend
+
+Dalam proyek WayFinder ini, terdapat dua cara berbeda untuk melakukan optimasi rute: **optimasi di frontend menggunakan algoritma Nearest Neighbor** (saat backend tidak digunakan) dan **optimasi di backend menggunakan algoritma Brute Force**. Berikut adalah penjelasan detail mengenai perbedaan kedua pendekatan ini.
+
+#### 1. Mengapa Fitur Optimasi Rute Masih Bisa Berjalan Meskipun Backend Tidak Digunakan
+
+Fitur optimasi rute tetap dapat berfungsi tanpa backend karena **seluruh proses perhitungan dilakukan langsung di browser pengguna**. Pada file `api.js`, terdapat fungsi `_dummyOptimize()` yang mensimulasikan algoritma TSP menggunakan JavaScript di sisi klien. Ini berarti aplikasi tidak bergantung pada server eksternal untuk menghitung rute optimal.
+
+#### 2. Algoritma Nearest Neighbor Dijalankan Langsung di Frontend Menggunakan JavaScript
+
+Algoritma Nearest Neighbor dapat dijalankan langsung di browser karena:
+- **JavaScript modern** memiliki kemampuan komputasi yang cukup untuk algoritma sederhana
+- **Proses perhitungan** dilakukan di perangkat pengguna tanpa perlu komunikasi jaringan
+- **Library bawaan browser** seperti `Math` cukup untuk menghitung jarak Haversine
+- **Tidak memerlukan instalasi** software tambahan di server
+
+Dalam kode `api.js`, fungsi `_dummyOptimize(locations)` mengimplementasikan Nearest Neighbor sepenuhnya di JavaScript.
+
+#### 3. Bagaimana Frontend Memproses Data Lokasi Tanpa Mengirim ke Server
+
+Proses optimasi di frontend berjalan sebagai berikut:
+- **Data lokasi** (koordinat lat/lng) sudah tersedia di memori browser dari input pengguna
+- **Perhitungan jarak** dilakukan menggunakan rumus Haversine dalam fungsi `_haversineKm()`
+- **Algoritma Nearest Neighbor** diterapkan: mulai dari titik pertama, selalu pilih titik terdekat berikutnya
+- **Hasil rute** langsung ditampilkan di UI tanpa delay jaringan
+
+```javascript
+// Contoh proses di frontend:
+const locations = [{lat: -7.79, lng: 110.36}, {lat: -7.80, lng: 110.37}, ...];
+const result = _dummyOptimize(locations); // Hitung langsung di browser
+// Hasil langsung muncul tanpa HTTP request
+```
+
+#### 4. Perbandingan dengan Penggunaan Backend yang Menjalankan Brute Force
+
+| Aspek | Frontend (Nearest Neighbor) | Backend (Brute Force) |
+|-------|-----------------------------|----------------------|
+| **Lokasi Perhitungan** | Browser pengguna | Server Python |
+| **Algoritma** | Heuristik cepat | Eksak, coba semua |
+| **Kecepatan** | Instan (< 1 detik) | Lambat untuk >8 titik |
+| **Optimalitas** | Tidak selalu optimal | Selalu optimal |
+| **Komunikasi** | Tidak ada jaringan | HTTP POST ke server |
+| **Ketergantungan** | Offline-ready | Perlu server aktif |
+
+#### 5. Backend Biasanya Digunakan Untuk
+
+Backend digunakan ketika aplikasi membutuhkan:
+- **Perhitungan yang lebih kompleks**: Algoritma yang memerlukan daya komputasi tinggi
+- **Pengolahan data besar**: Ribuan titik atau data tambahan (waktu, biaya, dll.)
+- **Keamanan data**: Data sensitif diproses di server yang terkontrol
+- **Integrasi database**: Menyimpan riwayat rute, preferensi pengguna, dll.
+- **Optimasi performa**: Server dedicated dapat menangani beban berat
+- **Pemrosesan algoritma berat**: Brute Force, algoritma genetika, atau machine learning
+
+#### 6. Perbedaan Karakteristik Algoritma
+
+**Nearest Neighbor:**
+- **Kelebihan**: Sangat cepat, ringan secara komputasi, cocok untuk real-time
+- **Kekurangan**: Hasil tidak selalu optimal, bisa terjebak di "jalan buntu"
+- **Kompleksitas**: O(n²) - linier terhadap jumlah titik
+- **Contoh**: Dalam 10 titik, hasil mungkin 20% lebih panjang dari optimal
+
+**Brute Force:**
+- **Kelebihan**: Dijamin menemukan rute terpendek, hasil selalu optimal
+- **Kekurangan**: Sangat lambat, kompleksitas faktorial O((n-1)!)
+- **Kompleksitas**: Tumbuh eksponensial - tidak praktis untuk >12 titik
+- **Contoh**: Dalam 10 titik, mencoba 362.880 kemungkinan
+
+#### 7. Mengapa Nearest Neighbor Cocok Dijalankan di Frontend/Browser
+
+Nearest Neighbor cocok untuk frontend karena:
+- **Komputasi sederhana**: Hanya perlu menghitung jarak berulang
+- **Responsif**: Pengguna langsung melihat hasil tanpa menunggu server
+- **Offline-capable**: Bisa berjalan tanpa koneksi internet
+- **Scalable untuk UI**: Cepat untuk preview dan interaksi real-time
+- **Resource-efficient**: Tidak membebani server atau bandwidth
+
+#### 8. Kapan Sebuah Project Mulai Membutuhkan Backend untuk Optimasi Rute
+
+Project mulai membutuhkan backend ketika:
+- **Jumlah titik > 10**: Brute Force diperlukan untuk optimalitas
+- **Data kompleks**: Mempertimbangkan faktor tambahan (jam sibuk, biaya, dll.)
+- **Multi-user**: Ribuan pengguna bersamaan membutuhkan server dedicated
+- **Data persistence**: Menyimpan dan menganalisis riwayat perjalanan
+- **Advanced algorithms**: Machine learning atau optimasi lanjutan
+- **Security requirements**: Data bisnis sensitif tidak boleh di browser
+
+#### 9. Analogi Sederhana
+
+**Frontend sebagai "Penghitung Langsung di Perangkat Pengguna":**
+Bayangkan Anda memiliki kalkulator di tangan. Untuk menghitung 2+3, Anda langsung tekan tombol dan hasil muncul instan. Tidak perlu telepon ke ahli matematika di kantor pusat. Nearest Neighbor seperti kalkulator pribadi - cepat, pribadi, dan langsung.
+
+**Backend sebagai "Pusat Pemrosesan/Server":**
+Sebaliknya, backend seperti menghubungi pusat data besar untuk perhitungan kompleks. Misalnya, untuk menghitung rute optimal di seluruh Indonesia dengan ribuan kota, Anda butuh superkomputer di data center. Brute Force seperti konsultasi dengan ahli yang punya waktu dan resource tak terbatas untuk mencoba semua kemungkinan.
+
+Dalam proyek WayFinder, frontend memberikan "jawaban cepat" untuk demo dan penggunaan sehari-hari, sementara backend menyediakan "jawaban akurat" untuk kebutuhan profesional atau data besar.
+
+---
+
 ## 9. `backend/distance.py` — Rumus Haversine
 
 **Peran:** Menghitung jarak antara dua titik koordinat GPS.
@@ -1287,14 +1530,11 @@ Berikut perjalanan data dari klik tombol sampai rute berwarna muncul:
     → locations = [{id, name, lat, lng}, ...]
          │
          ▼
-[4] api.js: optimizeRoute() (mode dummy)
-    → _dummyOptimize() menjalankan Nearest Neighbor di browser
-    → Simulasi delay 1.2 detik
+[4] api.js: optimizeRoute() (mode backend)
+    → Kirim POST http://localhost:5000/api/optimize
+    → Body: { "points": [[-7.79, 110.36], ...] }
+    → Backend Python menjalankan algoritma Brute Force
     → Return { orderedLocations, totalDistanceKm, estimatedMinutes }
-         │
-         ▼ (Jika backend aktif, alurnya berbeda:)
-    api.js kirim: POST http://localhost:5000/api/optimize
-    Body: { "points": [[-7.79, 110.36], ...] }
          │
          ▼
     app.py → routes/api.py: optimize_route()
@@ -1369,20 +1609,7 @@ python app.py
 
 Server berjalan di `http://localhost:5000`
 
-Kemudian di `api.js`, ganti baris dummy:
-
-```javascript
-// SEBELUM (dummy):
-return _dummyOptimize(locations);
-
-// SESUDAH (pakai backend):
-const response = await _fetchWithTimeout(`http://localhost:5000/api/optimize`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ points: locations.map((l) => [l.lat, l.lng]) }),
-});
-return await response.json();
-```
+**Status Saat Ini:** Backend sudah diaktifkan di `api.js`. Frontend akan mengirim request ke backend untuk optimasi rute menggunakan algoritma Brute Force. Kode Nearest Neighbor di frontend tetap dipertahankan sebagai komentar untuk referensi pembelajaran.
 
 ---
 

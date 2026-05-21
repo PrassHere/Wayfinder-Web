@@ -48,15 +48,12 @@ def create_app():
     → Memudahkan konfigurasi berbeda: development, production, testing
     → Best practice dalam pengembangan Flask profesional
 
-    ANALOGI: Seperti "pabrik" yang membuat objek App sesuai kebutuhan,
-    bukan membuat satu App yang dipakai semua orang selamanya.
-
     Return:
         Flask: Instance aplikasi yang sudah dikonfigurasi dan siap jalan
     """
 
     # Buat instance aplikasi Flask
-    # __name__ = nama modul saat ini (biasanya "app")
+    # __name__ = nama modul saat ini ("app")
     # Digunakan Flask untuk menentukan lokasi file statis dan template
     app = Flask(__name__)
 

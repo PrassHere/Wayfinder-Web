@@ -19,12 +19,10 @@
  * FILE INI MEMANGGIL: map.js (MapModule), api.js (ApiModule)
  */
 
-
 // ============================================================
 // UIModule: Objek utama yang mengontrol seluruh UI aplikasi
 // ============================================================
 const UIModule = (() => {
-
   // ----------------------------------------------------------
   // STATE APLIKASI
   // ----------------------------------------------------------
@@ -54,6 +52,12 @@ const UIModule = (() => {
   let isOptimizing = false;
 
   /**
+   * Indeks lokasi yang sedang aktif dalam animasi atau seleksi sidebar.
+   * Digunakan untuk menaikkan highlight daftar lokasi dan route info.
+   */
+  let activeLocationIndex = null;
+
+  /**
    * Apakah user sudah pernah klik di peta?
    * Digunakan untuk menyembunyikan petunjuk "klik peta untuk menambah"
    * setelah user melakukan klik pertama.
@@ -71,7 +75,6 @@ const UIModule = (() => {
    */
   let locationIdCounter = 0;
 
-
   // ----------------------------------------------------------
   // DATA TEMPLATE: Wisata Jogja
   // ----------------------------------------------------------
@@ -86,14 +89,13 @@ const UIModule = (() => {
    * karena ini data bawaan, bukan input user.
    */
   const TEMPLATE_JOGJA = [
-    { name: "Malioboro",          lat: -7.7928,  lng: 110.3653 },
-    { name: "Tugu Jogja",         lat: -7.7828,  lng: 110.3671 },
-    { name: "Keraton Yogyakarta", lat: -7.8053,  lng: 110.3642 },
-    { name: "Tebing Breksi",      lat: -7.7741,  lng: 110.5085 },
-    { name: "HeHa Sky View",      lat: -7.8639,  lng: 110.4344 },
-    { name: "Candi Prambanan",    lat: -7.7520,  lng: 110.4914 },
+    { name: "Malioboro", lat: -7.7928, lng: 110.3653 },
+    { name: "Tugu Jogja", lat: -7.7828, lng: 110.3671 },
+    { name: "Keraton Yogyakarta", lat: -7.8053, lng: 110.3642 },
+    { name: "Tebing Breksi", lat: -7.7741, lng: 110.5085 },
+    { name: "HeHa Sky View", lat: -7.8639, lng: 110.4344 },
+    { name: "Candi Prambanan", lat: -7.752, lng: 110.4914 },
   ];
-
 
   // ----------------------------------------------------------
   // CACHE REFERENSI DOM
@@ -111,7 +113,6 @@ const UIModule = (() => {
    */
   let DOM = {};
 
-
   // ============================================================
   // FUNGSI PUBLIC #1: init ← Entry Point Aplikasi
   // ============================================================
@@ -126,15 +127,16 @@ const UIModule = (() => {
    * 5. Update status tombol Optimize (disabled karena belum ada lokasi)
    */
   function init() {
-    _cacheDOMRefs();             // Simpan referensi HTML sekali
-    _bindEvents();               // Pasang semua event listener
-    MapModule.init();            // Mulai peta Leaflet
-    _renderLocationList();       // Render daftar (awalnya kosong)
+    _cacheDOMRefs(); // Simpan referensi HTML sekali
+    _bindEvents(); // Pasang semua event listener
+    MapModule.init(); // Mulai peta Leaflet
+    MapModule.setRouteAnimationProgressHandler(_onRouteAnimationProgress);
+    _renderLocationList(); // Render daftar (awalnya kosong)
     _updateOptimizeButtonState(); // Disable tombol (belum ada lokasi)
+    _checkBackendHealth(); // Cek koneksi backend saat startup
 
     console.info("[WayFinder UI] Aplikasi berhasil dimulai ✓");
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #1: _cacheDOMRefs
@@ -149,43 +151,48 @@ const UIModule = (() => {
   function _cacheDOMRefs() {
     DOM = {
       // ── Input & Tombol Utama ──
-      locationInput:     document.getElementById("locationInput"),     // Input nama lokasi
-      addLocationBtn:    document.getElementById("addLocationBtn"),    // Tombol "+"
-      optimizeBtn:       document.getElementById("optimizeBtn"),       // Tombol Optimalkan
-      clearAllBtn:       document.getElementById("clearAllBtn"),       // Tombol Hapus Semua
+      locationInput: document.getElementById("locationInput"), // Input nama lokasi
+      addLocationBtn: document.getElementById("addLocationBtn"), // Tombol "+"
+      optimizeBtn: document.getElementById("optimizeBtn"), // Tombol Optimalkan
+      cancelOptimizeBtn: document.getElementById("cancelOptimizeBtn"), // Tombol Batalkan Optimasi
+      clearAllBtn: document.getElementById("clearAllBtn"), // Tombol Hapus Semua
 
       // ── Template ──
-      templateJogjaBtn:  document.getElementById("templateJogjaBtn"), // Tombol template
-      templateBadge:     document.getElementById("templateBadge"),    // Chip konfirmasi
-      templateBadgeText: document.getElementById("templateBadgeText"),// Teks di chip
+      templateJogjaBtn: document.getElementById("templateJogjaBtn"), // Tombol template
+      templateBadge: document.getElementById("templateBadge"), // Chip konfirmasi
+      templateBadgeText: document.getElementById("templateBadgeText"), // Teks di chip
 
       // ── Daftar Lokasi ──
-      locationList:      document.getElementById("locationList"),      // Container kartu
-      emptyState:        document.getElementById("emptyState"),        // Pesan "belum ada"
+      locationList: document.getElementById("locationList"), // Container kartu
+      emptyState: document.getElementById("emptyState"), // Pesan "belum ada"
 
       // ── Statistik ──
-      locationCount:     document.getElementById("locationCount"),     // "X titik"
-      totalDistance:     document.getElementById("totalDistance"),     // "XX km"
-      estTime:           document.getElementById("estTime"),           // "XX menit"
+      locationCount: document.getElementById("locationCount"), // "X titik"
+      totalDistance: document.getElementById("totalDistance"), // "XX km"
+      estTime: document.getElementById("estTime"), // "XX menit"
 
       // ── Info Rute Optimal ──
-      routeInfo:         document.getElementById("routeInfo"),         // Panel urutan rute
-      routeOrder:        document.getElementById("routeOrder"),        // List urutannya
+      routeInfo: document.getElementById("routeInfo"), // Panel urutan rute
+      routeOrder: document.getElementById("routeOrder"), // List urutannya
+      routeAnimationControls: document.getElementById("routeAnimationControls"),
+      playAnimationBtn: document.getElementById("playAnimationBtn"),
+      resetAnimationBtn: document.getElementById("resetAnimationBtn"),
+      animationSpeedRange: document.getElementById("animationSpeedRange"),
+      animationSpeedLabel: document.getElementById("animationSpeedLabel"),
 
       // ── Status & Notifikasi ──
-      statusLabel:       document.getElementById("statusLabel"),       // Teks status
-      statusPill:        document.getElementById("statusPill"),        // Badge status
-      mapHint:           document.getElementById("mapHint"),           // Petunjuk klik peta
-      toastContainer:    document.getElementById("toastContainer"),    // Wadah notifikasi toast
+      statusLabel: document.getElementById("statusLabel"), // Teks status
+      statusPill: document.getElementById("statusPill"), // Badge status
+      mapHint: document.getElementById("mapHint"), // Petunjuk klik peta
+      toastContainer: document.getElementById("toastContainer"), // Wadah notifikasi toast
 
       // ── Mobile ──
-      globalSearch:      document.getElementById("globalSearch"),      // Search bar topbar
-      sidebarToggle:     document.getElementById("sidebarToggle"),     // Tombol X sidebar
-      topbarHamburger:   document.getElementById("topbarHamburger"),   // Tombol hamburger ☰
-      sidebar:           document.getElementById("sidebar"),           // Elemen sidebar
+      globalSearch: document.getElementById("globalSearch"), // Search bar topbar
+      sidebarToggle: document.getElementById("sidebarToggle"), // Tombol X sidebar
+      topbarHamburger: document.getElementById("topbarHamburger"), // Tombol hamburger ☰
+      sidebar: document.getElementById("sidebar"), // Elemen sidebar
     };
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #2: _bindEvents
@@ -202,7 +209,6 @@ const UIModule = (() => {
    * Tanda ?. = Optional Chaining: hanya pasang jika elemen ada
    */
   function _bindEvents() {
-
     // Tombol tambah lokasi (+)
     DOM.addLocationBtn?.addEventListener("click", _onAddLocationClick);
 
@@ -213,6 +219,12 @@ const UIModule = (() => {
 
     // Tombol "Optimalkan Rute"
     DOM.optimizeBtn?.addEventListener("click", _onOptimizeClick);
+    DOM.cancelOptimizeBtn?.addEventListener("click", _onCancelOptimizeClick);
+
+    // Tombol animasi rute
+    DOM.playAnimationBtn?.addEventListener("click", _onPlayAnimationClick);
+    DOM.resetAnimationBtn?.addEventListener("click", _onResetAnimationClick);
+    DOM.animationSpeedRange?.addEventListener("input", _onAnimationSpeedInput);
 
     // Tombol "Hapus Semua Titik"
     DOM.clearAllBtn?.addEventListener("click", _onClearAllClick);
@@ -225,7 +237,10 @@ const UIModule = (() => {
       if (e.key === "Enter") {
         const query = DOM.globalSearch.value.trim();
         if (query) {
-          showToast("Fitur pencarian akan tersedia setelah backend aktif", "warning");
+          showToast(
+            "Fitur pencarian akan tersedia setelah backend aktif",
+            "warning",
+          );
         }
       }
     });
@@ -240,14 +255,13 @@ const UIModule = (() => {
     document.addEventListener("click", (e) => {
       if (
         DOM.sidebar?.classList.contains("is-open") && // Sidebar sedang terbuka
-        !DOM.sidebar.contains(e.target) &&             // Klik bukan di dalam sidebar
-        e.target !== DOM.topbarHamburger               // Klik bukan di tombol hamburger
+        !DOM.sidebar.contains(e.target) && // Klik bukan di dalam sidebar
+        e.target !== DOM.topbarHamburger // Klik bukan di tombol hamburger
       ) {
         _closeSidebar();
       }
     });
   }
-
 
   // ============================================================
   // FUNGSI PUBLIC #2: addLocationFromMap
@@ -265,7 +279,6 @@ const UIModule = (() => {
    * @param {string} customName - Nama dari input (bisa kosong "")
    */
   async function addLocationFromMap(lat, lng, customName = "") {
-
     // Sembunyikan petunjuk "klik peta untuk menambah titik"
     // setelah user pertama kali klik (tidak perlu tampil terus)
     if (!mapClickedOnce) {
@@ -283,7 +296,6 @@ const UIModule = (() => {
 
     _addLocation(name, lat, lng);
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #3: _onAddLocationClick
@@ -318,7 +330,6 @@ const UIModule = (() => {
     showToast(`"${name}" ditambahkan ke daftar`, "success");
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #4: _onLoadTemplateJogja ← Fitur Baru
   // ============================================================
@@ -333,21 +344,20 @@ const UIModule = (() => {
    * → User dikonfirmasi sebelum data lama dihapus
    */
   function _onLoadTemplateJogja() {
-
     // Jika sudah ada lokasi → konfirmasi ke user sebelum menghapus
     if (locations.length > 0) {
       const ok = confirm(
-        "Memuat template Wisata Jogja akan menghapus lokasi yang sudah ada. Lanjutkan?"
+        "Memuat template Wisata Jogja akan menghapus lokasi yang sudah ada. Lanjutkan?",
       );
       if (!ok) return; // User membatalkan → hentikan
     }
 
     // ── BERSIHKAN STATE LAMA ──────────────────────────────────
-    locations = [];                // Kosongkan array state
-    MapModule.removeAllMarkers();  // Hapus semua marker dari peta
-    MapModule.clearRoute();        // Hapus semua garis rute
-    _resetStats();                 // Reset statistik (km & menit)
-    _hideRouteInfo();              // Sembunyikan panel urutan rute
+    locations = []; // Kosongkan array state
+    MapModule.removeAllMarkers(); // Hapus semua marker dari peta
+    MapModule.clearRoute(); // Hapus semua garis rute
+    _resetStats(); // Reset statistik (km & menit)
+    _hideRouteInfo(); // Sembunyikan panel urutan rute
 
     // ── LOAD TEMPLATE ─────────────────────────────────────────
     // Muat setiap lokasi satu per satu menggunakan _addLocation()
@@ -377,7 +387,6 @@ const UIModule = (() => {
     showToast("Template Wisata Jogja berhasil dimuat!", "info");
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #5: _addLocation ← Fungsi Paling Sering Dipanggil
   // ============================================================
@@ -399,7 +408,6 @@ const UIModule = (() => {
    * @param {number} lng  - Longitude
    */
   function _addLocation(name, lat, lng) {
-
     // Buat ID unik: "loc_" + counter + "_" + timestamp
     // Timestamp (Date.now()) = angka milidetik sejak 1 Jan 1970
     // Ini memastikan ID tidak pernah duplikat
@@ -431,7 +439,6 @@ const UIModule = (() => {
     _resetStats();
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #6: _removeLocation
   // ============================================================
@@ -442,7 +449,6 @@ const UIModule = (() => {
    * @param {string} id - ID lokasi yang akan dihapus
    */
   function _removeLocation(id) {
-
     // Cari indeks lokasi di array berdasarkan id
     const idx = locations.findIndex((l) => l.id === id);
     if (idx === -1) return; // Tidak ditemukan → berhenti
@@ -480,7 +486,6 @@ const UIModule = (() => {
     showToast(`"${removedName}" dihapus`, "default");
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #7: _onOptimizeClick ← Aksi Utama Aplikasi
   // ============================================================
@@ -506,13 +511,13 @@ const UIModule = (() => {
    * → Reset tombol ke kondisi normal
    */
   async function _onOptimizeClick() {
-
     // Cegah double-klik (jika sedang optimasi, abaikan klik baru)
     if (isOptimizing || locations.length < 2) return;
 
     isOptimizing = true;
     _setStatus("optimizing", "Mengoptimalkan…");
     _setOptimizeButtonLoading(true); // Tampilkan spinner di tombol
+    _toggleCancelOptimizeButton(true); // Tampilkan tombol batal
 
     try {
       // Kirim ke api.js dan tunggu hasilnya
@@ -522,9 +527,14 @@ const UIModule = (() => {
       // Perbarui state dengan urutan lokasi BARU dari TSP
       locations = result.orderedLocations;
 
-      // Gambar rute berwarna (mode optimized = true)
+      // Gambar animasi rute berurutan berdasarkan hasil optimasi
       const latlngs = locations.map((l) => [l.lat, l.lng]);
-      MapModule.drawRoute(latlngs, true);
+      MapModule.animateRoute(
+        locations,
+        DOM.animationSpeedRange?.value
+          ? parseInt(DOM.animationSpeedRange.value, 10)
+          : 450,
+      );
 
       // Perbarui angka di dalam marker (urutan sudah berubah)
       MapModule.refreshMarkerIcons(locations);
@@ -543,20 +553,23 @@ const UIModule = (() => {
 
       _setStatus("ready", "Rute optimal");
       showToast("Rute berhasil dioptimalkan!", "success");
-
     } catch (err) {
       // Jika terjadi error (network, validasi, dll)
       console.error("[WayFinder] Error optimasi:", err);
-      _setStatus("error", "Gagal");
-      showToast(err.message || "Gagal mengoptimalkan rute", "error");
-
+      if (err.message?.toLowerCase().includes("dibatalkan")) {
+        _setStatus("ready", "Optimasi dibatalkan");
+        showToast("Optimasi dibatalkan", "warning");
+      } else {
+        _setStatus("error", "Gagal");
+        showToast(err.message || "Gagal mengoptimalkan rute", "error");
+      }
     } finally {
       // "finally" = SELALU dieksekusi, baik sukses maupun error
       isOptimizing = false;
       _setOptimizeButtonLoading(false); // Hapus spinner dari tombol
+      _toggleCancelOptimizeButton(false); // Sembunyikan tombol batal
     }
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #8: _onClearAllClick
@@ -594,7 +607,6 @@ const UIModule = (() => {
     showToast("Semua lokasi dihapus", "default");
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #9: _renderLocationList
   // ============================================================
@@ -629,11 +641,18 @@ const UIModule = (() => {
     // Buat dan tambahkan kartu untuk setiap lokasi
     locations.forEach((loc, idx) => {
       // idx + 1 karena idx mulai dari 0, tapi nomor urutan mulai dari 1
-      const card = _createLocationCard(loc, idx + 1);
+      const card = _createLocationCard(loc, idx + 1, idx);
       DOM.locationList.appendChild(card);
     });
-  }
 
+    if (
+      activeLocationIndex !== null &&
+      activeLocationIndex >= locations.length
+    ) {
+      activeLocationIndex = null;
+    }
+    _applyActiveLocationHighlight();
+  }
 
   // ============================================================
   // FUNGSI PRIVATE #10: _createLocationCard
@@ -655,12 +674,12 @@ const UIModule = (() => {
    * @param {number} index - Nomor urutan (1, 2, 3, ...)
    * @returns {HTMLElement} - Elemen <div> kartu yang siap ditambahkan ke DOM
    */
-  function _createLocationCard(loc, index) {
-
+  function _createLocationCard(loc, index, idx) {
     // Buat elemen <div> baru secara programatik
     const card = document.createElement("div");
-    card.className       = "location-card";
+    card.className = "location-card";
     card.dataset.locationId = loc.id; // Simpan id di atribut data
+    card.dataset.locationIndex = idx;
 
     // Isi HTML kartu menggunakan template literal
     // _escapeHTML() digunakan untuk mencegah XSS (injeksi HTML berbahaya)
@@ -693,10 +712,8 @@ const UIModule = (() => {
       // Jika yang diklik adalah tombol hapus, abaikan event ini
       if (e.target.closest(".card-delete")) return;
 
-      // Tandai kartu ini sebagai "aktif" (styling berbeda)
-      document.querySelectorAll(".location-card.is-active")
-        .forEach((c) => c.classList.remove("is-active"));
-      card.classList.add("is-active");
+      activeLocationIndex = idx;
+      _applyActiveLocationHighlight();
 
       // Pindahkan tampilan peta ke marker lokasi ini
       MapModule.panToMarker(loc.id);
@@ -711,7 +728,6 @@ const UIModule = (() => {
 
     return card;
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #11: _drawPreviewRoute
@@ -729,6 +745,50 @@ const UIModule = (() => {
     MapModule.drawRoute(latlngs, false); // false = mode preview
   }
 
+  function _applyActiveLocationHighlight() {
+    const cards = DOM.locationList
+      ? Array.from(DOM.locationList.querySelectorAll(".location-card"))
+      : [];
+    cards.forEach((card, idx) => {
+      card.classList.toggle("is-active", idx === activeLocationIndex);
+    });
+
+    const routeItems = DOM.routeOrder
+      ? Array.from(DOM.routeOrder.querySelectorAll("li"))
+      : [];
+    routeItems.forEach((item, idx) => {
+      item.classList.toggle("is-active", idx === activeLocationIndex);
+    });
+  }
+
+  function _setActiveLocationIndex(index) {
+    if (typeof index !== "number" || index < 0 || index >= locations.length) {
+      activeLocationIndex = null;
+    } else {
+      activeLocationIndex = index;
+    }
+
+    _applyActiveLocationHighlight();
+
+    if (activeLocationIndex === null) return;
+
+    const cards = DOM.locationList
+      ? Array.from(DOM.locationList.querySelectorAll(".location-card"))
+      : [];
+    const card = cards[activeLocationIndex];
+    card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    const routeItems = DOM.routeOrder
+      ? Array.from(DOM.routeOrder.querySelectorAll("li"))
+      : [];
+    const routeItem = routeItems[activeLocationIndex];
+    routeItem?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+  }
+
+  function _clearActiveLocationHighlight() {
+    activeLocationIndex = null;
+    _applyActiveLocationHighlight();
+  }
 
   // ============================================================
   // FUNGSI PRIVATE #12: _updateOptimizeButtonState
@@ -746,7 +806,6 @@ const UIModule = (() => {
     if (!DOM.optimizeBtn) return;
     DOM.optimizeBtn.disabled = locations.length < 2 || isOptimizing;
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #13: _setOptimizeButtonLoading
@@ -794,7 +853,6 @@ const UIModule = (() => {
     }
   }
 
-
   // ============================================================
   // FUNGSI PRIVATE #14: _updateLocationCount
   // ============================================================
@@ -811,7 +869,6 @@ const UIModule = (() => {
     // Bisa dipakai di CSS untuk styling berbeda
     DOM.locationCount.classList.toggle("has-items", n > 0);
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #15: _updateStats
@@ -832,10 +889,9 @@ const UIModule = (() => {
       DOM.estTime.textContent =
         minutes >= 60
           ? `${Math.floor(minutes / 60)}j ${minutes % 60}m` // Contoh: "1j 3m"
-          : `${minutes} menit`;                               // Contoh: "45 menit"
+          : `${minutes} menit`; // Contoh: "45 menit"
     }
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #16: _resetStats
@@ -847,10 +903,9 @@ const UIModule = (() => {
    */
   function _resetStats() {
     if (DOM.totalDistance) DOM.totalDistance.textContent = "— km";
-    if (DOM.estTime)       DOM.estTime.textContent       = "— menit";
+    if (DOM.estTime) DOM.estTime.textContent = "— menit";
     _hideRouteInfo();
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #17: _renderRouteInfo
@@ -875,11 +930,11 @@ const UIModule = (() => {
     DOM.routeOrder.innerHTML = orderedLocations
       .map(
         (loc, idx) => `
-        <li>
+        <li class="route-step">
           <span class="ro-num">${idx + 1}.</span>
           ${_escapeHTML(loc.name)}
         </li>
-      `
+      `,
       )
       .join(""); // Gabungkan semua <li> menjadi satu string
 
@@ -893,10 +948,62 @@ const UIModule = (() => {
       `;
     }
 
-    // Tampilkan panel
+    // Tampilkan panel dan kontrol animasi
     DOM.routeInfo.style.display = "block";
+    _toggleRouteAnimationControls(true);
+    _updateAnimationSpeedLabel();
+    _applyActiveLocationHighlight();
   }
 
+  function _toggleRouteAnimationControls(visible) {
+    if (!DOM.routeAnimationControls) return;
+    DOM.routeAnimationControls.style.display = visible ? "grid" : "none";
+    if (visible) {
+      DOM.playAnimationBtn.disabled = false;
+      DOM.resetAnimationBtn.disabled = true;
+    }
+  }
+
+  function _updateAnimationSpeedLabel() {
+    if (!DOM.animationSpeedRange || !DOM.animationSpeedLabel) return;
+    DOM.animationSpeedLabel.textContent = `${DOM.animationSpeedRange.value} ms`;
+  }
+
+  function _onPlayAnimationClick() {
+    if (!DOM.animationSpeedRange) return;
+    const speed = parseInt(DOM.animationSpeedRange.value, 10) || 450;
+    MapModule.animateRoute(locations, speed);
+    DOM.playAnimationBtn.disabled = true;
+    DOM.resetAnimationBtn.disabled = false;
+  }
+
+  function _onRouteAnimationProgress(index) {
+    _setActiveLocationIndex(index);
+  }
+
+  function _onResetAnimationClick() {
+    MapModule.resetAnimation();
+    _clearActiveLocationHighlight();
+    DOM.playAnimationBtn.disabled = false;
+    DOM.resetAnimationBtn.disabled = true;
+  }
+
+  function _onAnimationSpeedInput() {
+    _updateAnimationSpeedLabel();
+  }
+
+  function _onCancelOptimizeClick() {
+    if (!isOptimizing) return;
+    ApiModule.abortOptimize();
+    _toggleCancelOptimizeButton(false);
+    _setStatus("ready", "Membatalkan optimasi…");
+    showToast("Permintaan pembatalan dikirim", "info");
+  }
+
+  function _toggleCancelOptimizeButton(visible) {
+    if (!DOM.cancelOptimizeBtn) return;
+    DOM.cancelOptimizeBtn.style.display = visible ? "inline-flex" : "none";
+  }
 
   // ============================================================
   // FUNGSI PRIVATE #18: _hideRouteInfo
@@ -904,8 +1011,9 @@ const UIModule = (() => {
   /** Sembunyikan panel urutan rute. */
   function _hideRouteInfo() {
     if (DOM.routeInfo) DOM.routeInfo.style.display = "none";
+    if (DOM.routeAnimationControls)
+      DOM.routeAnimationControls.style.display = "none";
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #19: _setStatus
@@ -923,13 +1031,31 @@ const UIModule = (() => {
     DOM.statusPill.className = "status-pill";
 
     // Tambahkan class sesuai jenis status (untuk warna berbeda)
-    if (type === "optimizing") DOM.statusPill.classList.add("status--optimizing");
-    if (type === "error")      DOM.statusPill.classList.add("status--error");
+    if (type === "optimizing")
+      DOM.statusPill.classList.add("status--optimizing");
+    if (type === "error") DOM.statusPill.classList.add("status--error");
 
     // Update teks
     DOM.statusLabel.textContent = label;
   }
 
+  async function _checkBackendHealth() {
+    try {
+      const health = await ApiModule.healthCheck();
+      if (health.status === "ok") {
+        _setStatus("ready", "Backend terhubung");
+      } else {
+        throw new Error(health.message || "Backend tidak responsif");
+      }
+    } catch (err) {
+      console.warn("[WayFinder UI] Backend health check gagal:", err);
+      showToast(
+        "Backend tidak terhubung. Jalankan server Python dengan python backend/app.py",
+        "error",
+      );
+      _setStatus("error", "Backend offline");
+    }
+  }
 
   // ============================================================
   // FUNGSI PRIVATE #20 & #21: _openSidebar / _closeSidebar
@@ -970,7 +1096,6 @@ const UIModule = (() => {
     overlay.classList.add("is-visible");
   }
 
-
   // ============================================================
   // FUNGSI PUBLIC #3: showToast ← Dipakai di mana saja
   // ============================================================
@@ -1003,11 +1128,15 @@ const UIModule = (() => {
 
     // Pilih ikon SVG sesuai jenis toast
     const icons = {
-      success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-      warning: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
-      error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-      info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-      default: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>',
+      success:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      warning:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      error:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+      default:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>',
     };
 
     // Isi toast dengan ikon + pesan
@@ -1020,7 +1149,6 @@ const UIModule = (() => {
       setTimeout(() => toast.remove(), 350); // Hapus dari DOM setelah animasi
     }, duration);
   }
-
 
   // ============================================================
   // FUNGSI PRIVATE #22: _escapeHTML
@@ -1048,18 +1176,15 @@ const UIModule = (() => {
     return div.innerHTML;
   }
 
-
   // ============================================================
   // PUBLIC API — Fungsi yang bisa diakses dari file lain
   // ============================================================
   return {
-    init,               // map.js → Dipanggil saat DOMContentLoaded
+    init, // map.js → Dipanggil saat DOMContentLoaded
     addLocationFromMap, // map.js → Dipanggil saat user klik peta
-    showToast,          // Bisa dipanggil dari mana saja untuk notifikasi
+    showToast, // Bisa dipanggil dari mana saja untuk notifikasi
   };
-
 })(); // ← Tutup IIFE dan langsung eksekusi
-
 
 // ============================================================
 // BOOTSTRAP — Mulai aplikasi saat HTML selesai dimuat browser
