@@ -326,60 +326,6 @@
               </div>
             </div>
 
-            <!-- Route info panel (hidden until optimized) -->
-            <div class="route-info" id="routeInfo" style="display: none">
-              <div class="route-info__header">
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
-                Urutan Rute Optimal
-              </div>
-              <ol class="route-order" id="routeOrder"></ol>
-
-              <div
-                class="route-animation-controls"
-                id="routeAnimationControls"
-                style="display: none"
-              >
-                <div class="route-animation-actions">
-                  <button
-                    class="btn btn--ghost btn--sm"
-                    id="playAnimationBtn"
-                    disabled
-                  >
-                    Putar Animasi
-                  </button>
-                  <button
-                    class="btn btn--ghost btn--sm"
-                    id="resetAnimationBtn"
-                    disabled
-                  >
-                    Reset Animasi
-                  </button>
-                </div>
-                <div class="route-animation-speed">
-                  <label for="animationSpeedRange">Kecepatan:</label>
-                  <input
-                    type="range"
-                    id="animationSpeedRange"
-                    min="150"
-                    max="1000"
-                    step="50"
-                    value="450"
-                  />
-                  <span id="animationSpeedLabel">450 ms</span>
-                </div>
-              </div>
-            </div>
 
             <!-- Action buttons -->
             <div class="footer-actions">
@@ -438,6 +384,91 @@
       <section class="map-area">
         <!-- Map container (Leaflet target) -->
         <div id="map" class="map-container"></div>
+
+        <!-- Floating route info card (hidden until optimized) -->
+        <div class="route-info route-info-card" id="routeInfo" style="display: none">
+          <div class="route-info-card__header" id="routeInfoCardHeader">
+            <div class="route-info-card__title">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              <span>Rute Optimal</span>
+            </div>
+            <button
+              class="route-info-card__toggle"
+              id="toggleRouteInfoCard"
+              title="Lipat/Buka Panel"
+              aria-label="Toggle Panel"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </button>
+          </div>
+          <div class="route-info-card__body" id="routeInfoCardBody">
+            <div class="route-info-card__scroll">
+              <ol class="route-order" id="routeOrder"></ol>
+            </div>
+            <div
+              class="route-animation-controls"
+              id="routeAnimationControls"
+              style="display: none"
+            >
+              <div class="route-animation-actions">
+                <button
+                  class="btn btn--primary btn--sm"
+                  id="playAnimationBtn"
+                  disabled
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                  Putar
+                </button>
+                <button
+                  class="btn btn--ghost btn--sm"
+                  id="resetAnimationBtn"
+                  disabled
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                  Reset
+                </button>
+              </div>
+              <div class="route-animation-speed">
+                <label for="animationSpeedRange">Kecepatan:</label>
+                <input
+                  type="range"
+                  id="animationSpeedRange"
+                  min="150"
+                  max="1000"
+                  step="50"
+                  value="450"
+                />
+                <span id="animationSpeedLabel">450 ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Floating map controls -->
         <div class="map-fab-group">
